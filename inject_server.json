@@ -1,0 +1,125 @@
+{
+  "listeners": [
+  {
+    "address": "tcp://0.0.0.0:8080",
+    "use_original_dst": true,
+    "filters": [
+      { "type": "read", 
+        "name": "http_connection_manager",
+        "config": {
+            "codec_type": "auto",
+            "stat_prefix": "ingress_http",
+            "route_config": {
+                "virtual_hosts": [
+                    {
+                        "name": "backend",
+                        "domains": ["*"],
+                        "routes": [
+                            {
+                                "timeout_ms": 15000,
+                                "prefix": "/service/",
+                                "cluster": "services"
+                            }
+                        ]
+                    }
+                ],
+                "response_headers_to_remove" : [ "x-envoy-upstream-service-time" ],
+                "internal_only_headers" : [ "x-myco-jwt", "x-myco-jwt-v2", "x-myco-jwt-v3"]
+            },
+            "filters": [
+                {
+                    "type": "decoder",
+                    "name": "inject",
+                    "config": {
+                        "trigger_headers": ["cookie.sessId"],
+                        "inject_headers": ["x-myco-jwt"],
+                        "remove_headers": ["cookie.sessId"],
+                        "cluster_name": "sessions"
+                    }
+                },
+                {
+                    "type": "decoder",
+                    "name": "inject",
+                    "config": {
+                        "trigger_headers": ["authorization"],
+                        "antitrigger_headers": ["x-myco-jwt"],
+                        "include_headers": [],
+                        "inject_headers": ["x-myco-jwt", "x-myco-jwt-v2"],
+                        "remove_headers": ["authorization"],
+                        "cluster_name": "oauth"
+                    }
+                },
+                {
+                    "type": "decoder",
+                    "name": "inject",
+                    "config": {
+                        "trigger_headers": ["x-myco-authn"],
+                        "antitrigger_headers": ["x-myco-jwt", "x-myco-jwt-v2"],
+                        "include_headers": ["x-myco-extra"],
+                        "inject_headers": ["x-myco-jwt-v2", "x-myco-jwt-v3"],
+                        "remove_headers": ["x-myco-authn"],
+                        "cluster_name": "legacyauthn"
+                    }
+                },
+
+                {
+                    "type": "decoder",
+                    "name": "router",
+                    "config": {}
+                }
+            ]
+        }
+      }
+    ]
+  }],
+  "admin": { "access_log_path": "/dev/null",
+	     "profile_path": "{{ test_tmpdir }}/envoy.prof",
+	     "address": "tcp://127.0.0.1:1234" },
+  "cluster_manager": {
+      "clusters": [           
+          {
+              "name": "services",
+              "type": "static",
+              "connect_timeout_ms": 1000,
+              "lb_type": "round_robin",
+              "hosts": [{"url": "tcp://169.254.17.1:8443"}],
+              "service_name": "services",
+              "max_requests_per_connection": 1,
+              "ssl_context" : {
+              }
+          },
+          {
+              "name": "sessions",
+              "type": "static",
+              "connect_timeout_ms": 1000,
+              "lb_type": "round_robin",
+              "hosts": [{"url": "tcp://169.254.17.1:9000"}],
+              "service_name": "sessions",
+              "max_requests_per_connection": 1,
+              "ssl_context" : {
+              }
+          },
+          {
+              "name": "oauth",
+              "type": "static",
+              "connect_timeout_ms": 1000,
+              "lb_type": "round_robin",
+              "hosts": [{"url": "tcp://169.254.17.1:9001"}],
+              "service_name": "oauth",
+              "max_requests_per_connection": 1,
+              "ssl_context" : {
+              }
+          },
+          {
+              "name": "legacyauthn",
+              "type": "static",
+              "connect_timeout_ms": 1000,
+              "lb_type": "round_robin",
+              "hosts": [{"url": "tcp://169.254.17.1:9002"}],
+              "service_name": "legacyauthn",
+              "max_requests_per_connection": 1,
+              "ssl_context" : {
+              }
+          }]
+  }
+}
