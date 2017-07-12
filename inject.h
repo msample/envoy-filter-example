@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <iostream>
 
 #include "envoy/http/filter.h"
 #include "envoy/local_info/local_info.h"
@@ -28,12 +29,12 @@ public:
 
  InjectFilterConfig(std::vector<Http::LowerCaseString>& trigger_headers,
                     std::vector<Http::LowerCaseString>& antitrigger_headers,
-                    std::vector<Http::LowerCaseString>& include_headers, 
-                    std::vector<Http::LowerCaseString>& inject_headers, 
-                    std::vector<Http::LowerCaseString>& remove_headers, 
+                    std::vector<Http::LowerCaseString>& include_headers,
+                    std::vector<Http::LowerCaseString>& inject_headers,
+                    std::vector<Http::LowerCaseString>& remove_headers,
                     Upstream::ClusterManager& cluster_mgr,
-                    std::string cluster_name): 
-  trigger_headers_(trigger_headers), antitrigger_headers_(antitrigger_headers), include_headers_(include_headers), 
+                    std::string cluster_name):
+  trigger_headers_(trigger_headers), antitrigger_headers_(antitrigger_headers), include_headers_(include_headers),
     inject_headers_(inject_headers), remove_headers_(remove_headers),
     inject_client_(new Grpc::AsyncClientImpl<inject::InjectRequest, inject::InjectResponse>(cluster_mgr, cluster_name)),
     method_descriptor_(inject::inject::descriptor()->FindMethodByName("injectHeaders")) {}
@@ -58,9 +59,10 @@ public:
 
 typedef std::shared_ptr<InjectFilterConfig> InjectFilterConfigSharedPtr;
 
-class InjectFilter : public StreamDecoderFilter {
+class InjectFilter : public StreamDecoderFilter, Grpc::AsyncClientCallbacks<inject::InjectResponse> {
 public:
- InjectFilter(InjectFilterConfigSharedPtr config): config_(config) {}
+ InjectFilter(InjectFilterConfigSharedPtr config): config_(config) { std::cout << "created!" << this << std::endl; }
+  ~InjectFilter() { std::cout << "destroyed: " << this << std::endl; }
 
   // Http::StreamFilterBase
   void onDestroy() override;
@@ -71,11 +73,21 @@ public:
   FilterTrailersStatus decodeTrailers(HeaderMap& trailers) override;
   void setDecoderFilterCallbacks(StreamDecoderFilterCallbacks& callbacks) override;
 
+  // Grpc::AsyncClientCallbacks
+  void onCreateInitialMetadata(Http::HeaderMap& ) override;
+  void onReceiveInitialMetadata(Http::HeaderMapPtr&&) override;
+  void onReceiveMessage(std::unique_ptr<inject::InjectResponse>&& ) override;
+  void onReceiveTrailingMetadata(Http::HeaderMapPtr&&) override;
+  void onRemoteClose(Grpc::Status::GrpcStatus) override;
+
 private:
 
   InjectFilterConfigSharedPtr config_;
-  StreamDecoderFilterCallbacks* callbacks_{};
-  Upstream::ClusterInfoConstSharedPtr cluster_;
+  StreamDecoderFilterCallbacks* callbacks_;
+  bool inject_resp_received_;
+  //std::unique_ptr<Grpc::AsyncClientStream<inject::InjectRequest>> req_;
+  Grpc::AsyncClientStream<inject::InjectRequest>* req_;
+  HeaderMap* hdrs_;
 };
 
 } // Http
