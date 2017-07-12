@@ -76,7 +76,7 @@
 	     "profile_path": "{{ test_tmpdir }}/envoy.prof",
 	     "address": "tcp://127.0.0.1:1234" },
   "cluster_manager": {
-      "clusters": [           
+      "clusters": [
           {
               "name": "services",
               "type": "static",
@@ -93,11 +93,9 @@
               "type": "static",
               "connect_timeout_ms": 1000,
               "lb_type": "round_robin",
-              "hosts": [{"url": "tcp://169.254.17.1:9000"}],
+              "hosts": [{"url": "tcp://169.254.17.1:9001"}],
               "service_name": "sessions",
-              "max_requests_per_connection": 1,
-              "ssl_context" : {
-              }
+              "max_requests_per_connection": 1
           },
           {
               "name": "oauth",
@@ -106,20 +104,16 @@
               "lb_type": "round_robin",
               "hosts": [{"url": "tcp://169.254.17.1:9001"}],
               "service_name": "oauth",
-              "max_requests_per_connection": 1,
-              "ssl_context" : {
-              }
+              "max_requests_per_connection": 1
           },
           {
               "name": "legacyauthn",
               "type": "static",
               "connect_timeout_ms": 1000,
               "lb_type": "round_robin",
-              "hosts": [{"url": "tcp://169.254.17.1:9002"}],
+              "hosts": [{"url": "tcp://169.254.17.1:9001"}],
               "service_name": "legacyauthn",
-              "max_requests_per_connection": 1,
-              "ssl_context" : {
-              }
+              "max_requests_per_connection": 1
           }]
   }
 }

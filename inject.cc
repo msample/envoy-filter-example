@@ -11,32 +11,52 @@ namespace Envoy {
 namespace Http {
 
 
-//  To be completed - stubbed out callbacks for getting gRPC response to inject request
-class InjectCallbacks: public Grpc::AsyncClientCallbacks<inject::InjectResponse> {
+// called for gRPC call to InjectHeader
+void InjectFilter::onCreateInitialMetadata(Http::HeaderMap& ) {
+  std::cout << "called onCreateInitialMetadata on icb: " << this << std::endl;
+}
 
-public:
+// called for gRPC call to InjectHeader
+void InjectFilter::onReceiveInitialMetadata(Http::HeaderMapPtr&&) {
+  std::cout << "called on onReceiveInitialMetadata on icb: " << this << std::endl;
+}
 
-  void onCreateInitialMetadata(Http::HeaderMap& ) { 
-    std::cout << "called onCreateInitialMetadata on icb: " << this << std::endl;
+// called for gRPC call to InjectHeader
+void InjectFilter::onReceiveMessage(std::unique_ptr<inject::InjectResponse>&& resp)  {
+  std::cout << "called on onReceiveMessage on icb: " << this << std::endl;
+  if (req_) {
+    req_->resetStream();
+  }
+  std::map<std::string,std::string> inject_hdrs_; 
+  for (int i = 0; i < resp->headers_size(); ++i) {
+    const inject::Header& h = resp->headers(i);
+    inject_hdrs_.insert(std::pair<std::string,std::string>(h.key(), h.value()));
   }
 
-  void onReceiveInitialMetadata(Http::HeaderMapPtr&&) { 
-    std::cout << "called on onReceiveInitialMetadata on icb: " << this << std::endl;
+  for (const Http::LowerCaseString& element : config_->inject_headers()) {
+    std::cout << "Injecting " << element.get() << std::endl;
+    std::map<std::string,std::string>::iterator it = inject_hdrs_.find(element.get());
+    if (it != inject_hdrs_.end()) {
+      hdrs_->addStaticKey(element, it->second);
+    }
   }
 
-  void onReceiveMessage(std::unique_ptr<inject::InjectResponse>&& )  {
-    std::cout << "called on onReceiveMessage on icb: " << this << std::endl;
+  for (const Http::LowerCaseString& element : config_->remove_headers()) {
+    hdrs_->remove(element);
   }
+  callbacks_->continueDecoding();
+  std::cout << "exiting onReceiveMessage on icb: " << this << std::endl;
+}
 
-  void onReceiveTrailingMetadata(Http::HeaderMapPtr&&)  { 
-    std::cout << "called on onReceiveTrailingMetadata on icb: " << this << std::endl;
-  }
+// called for gRPC call to InjectHeader
+void InjectFilter::onReceiveTrailingMetadata(Http::HeaderMapPtr&&)  {
+  std::cout << "called on onReceiveTrailingMetadata on icb: " << this << std::endl;
+}
 
-  void onRemoteClose(Grpc::Status::GrpcStatus) {
-    std::cout << "called on remote close on icb: " << this << std::endl;
-  }
-};
-
+// called for gRPC call to InjectHeader
+void InjectFilter::onRemoteClose(Grpc::Status::GrpcStatus) {
+  std::cout << "called on onRemoteClose on icb: " << this << std::endl;
+}
 
 // decodeHeaders - see if any configured headers are present, and if so send them to
 // the configured header injection service
@@ -92,39 +112,45 @@ FilterHeadersStatus InjectFilter::decodeHeaders(HeaderMap& headers, bool) {
     ir.add_injectheadernames(element.get());
   }
 
-  // at work here...
-  // InjectCallbacks* ic = new InjectCallbacks();
-  // Grpc::AsyncClientStream<inject::InjectRequest>* req = config_->inject_client()->start(config_->method_descriptor(), *ic, std::chrono::milliseconds(10));
-  // req->sendMessage(ir);
+  //  issues here - if don't reset stream in this fcn (we can't if we want the reply) we get seg fault.
+  //std::unique_ptr<Grpc::AsyncClientStream<inject::InjectRequest>> x{config_->inject_client()->start(config_->method_descriptor(), *this, std::chrono::milliseconds(10))};
+  //req_ = std::move(x);
+  req_ = std::move(config_->inject_client()->start(config_->method_descriptor(), *this, std::chrono::milliseconds(10)));
+  req_->sendMessage(ir);
+  req_->closeStream();
 
-  // just add some test headers for now
-  for (const Http::LowerCaseString& element : config_->inject_headers()) {
-    std::cout << "Injecting " << element.get() << std::endl;
-    headers.addStaticKey(element, "fofofo");
-  }
+  // no segv if do this... but no progress either
+  // req_->resetStream();
 
-  for (const Http::LowerCaseString& element : config_->remove_headers()) {
-    headers.remove(element);
-  }
-
-  std::cout << "exiting decode headers filter method" << std::endl;
-  return FilterHeadersStatus::Continue;
+  hdrs_ = &headers;
+  // give control back to event loop so gRPC inject response can be received
+  // FIXME: set timeout with dispatcher to either contine or fail the original call
+  std::cout << "exiting decode headers filter method, waiting for grpc response" << std::endl;
+  return FilterHeadersStatus::StopIteration;
 }
 
 FilterDataStatus InjectFilter::decodeData(Buffer::Instance&, bool) {
+  std::cout << "decode data called on: " << this << std::endl;
   return FilterDataStatus::Continue;
 }
 
 FilterTrailersStatus InjectFilter::decodeTrailers(HeaderMap&) {
+  std::cout << "decode trailers called on: " << this << std::endl;
   return FilterTrailersStatus::Continue;
 }
 
 void InjectFilter::setDecoderFilterCallbacks(StreamDecoderFilterCallbacks& callbacks) {
+  std::cout << "decoder filter callbacks set on: " << this << std::endl;
   callbacks_ = &callbacks;
 }
 
 void InjectFilter::onDestroy() {
+  std::cout << "decoder filter onDestroy called on: " << this << std::endl;
+  if (req_) {
+    req_->resetStream();
+  }
 }
+
 
 
 
