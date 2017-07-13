@@ -25,7 +25,9 @@ void InjectFilter::onReceiveInitialMetadata(Http::HeaderMapPtr&&) {
 void InjectFilter::onReceiveMessage(std::unique_ptr<inject::InjectResponse>&& resp)  {
   std::cout << "called on onReceiveMessage on icb: " << this << std::endl;
   if (req_) {
+    std::cout << "onRecvMsmg non-nil req_ on  " << this << std::endl;
     req_->resetStream();
+    req_ = 0;
   }
   std::map<std::string,std::string> inject_hdrs_; 
   for (int i = 0; i < resp->headers_size(); ++i) {
@@ -55,7 +57,7 @@ void InjectFilter::onReceiveTrailingMetadata(Http::HeaderMapPtr&&)  {
 
 // called for gRPC call to InjectHeader
 void InjectFilter::onRemoteClose(Grpc::Status::GrpcStatus) {
-  std::cout << "called on onRemoteClose on icb: " << this << std::endl;
+  std::cout << "onRemoteClose called on icb: " << this << std::endl;
 }
 
 // decodeHeaders - see if any configured headers are present, and if so send them to
@@ -115,12 +117,14 @@ FilterHeadersStatus InjectFilter::decodeHeaders(HeaderMap& headers, bool) {
   //  issues here - if don't reset stream in this fcn (we can't if we want the reply) we get seg fault.
   //std::unique_ptr<Grpc::AsyncClientStream<inject::InjectRequest>> x{config_->inject_client()->start(config_->method_descriptor(), *this, std::chrono::milliseconds(10))};
   //req_ = std::move(x);
-  req_ = std::move(config_->inject_client()->start(config_->method_descriptor(), *this, std::chrono::milliseconds(10)));
+  //req_ = std::move(config_->inject_client()->start(config_->method_descriptor(), *this, std::chrono::milliseconds(10)));
+  req_ = config_->inject_client()->start(config_->method_descriptor(), *this, std::chrono::milliseconds(10));
   req_->sendMessage(ir);
   req_->closeStream();
-
+ 
   // no segv if do this... but no progress either
-  // req_->resetStream();
+  //req_->resetStream();
+  callbacks_->route(); // see if we can init router to avoid explosion on reset from missing grpc svc
 
   hdrs_ = &headers;
   // give control back to event loop so gRPC inject response can be received
@@ -147,6 +151,7 @@ void InjectFilter::setDecoderFilterCallbacks(StreamDecoderFilterCallbacks& callb
 void InjectFilter::onDestroy() {
   std::cout << "decoder filter onDestroy called on: " << this << std::endl;
   if (req_) {
+    std::cout << "req_ non-nil" << std::endl;
     req_->resetStream();
   }
 }

@@ -39,12 +39,14 @@ public:
     inject_client_(new Grpc::AsyncClientImpl<inject::InjectRequest, inject::InjectResponse>(cluster_mgr, cluster_name)),
     method_descriptor_(inject::inject::descriptor()->FindMethodByName("injectHeaders")) {}
 
+  ~InjectFilterConfig() { std::cout << "Injectfilt config destroyed: " << this << std::endl; }
+
   const std::vector<Http::LowerCaseString>& trigger_headers() { return trigger_headers_; }
   const std::vector<Http::LowerCaseString>& antitrigger_headers() { return antitrigger_headers_; }
   const std::vector<Http::LowerCaseString>& include_headers() { return include_headers_; }
   const std::vector<Http::LowerCaseString>& inject_headers() { return inject_headers_; }
   const std::vector<Http::LowerCaseString>& remove_headers() { return remove_headers_; }
-  Grpc::AsyncClientImpl<inject::InjectRequest, inject::InjectResponse>* inject_client() { return inject_client_; }
+  std::shared_ptr<Grpc::AsyncClientImpl<inject::InjectRequest, inject::InjectResponse>> inject_client() { return inject_client_; }
   const google::protobuf::MethodDescriptor& method_descriptor() { return *method_descriptor_; }
 
  private:
@@ -53,7 +55,7 @@ public:
   std::vector<Http::LowerCaseString> include_headers_;
   std::vector<Http::LowerCaseString> inject_headers_;
   std::vector<Http::LowerCaseString> remove_headers_;
-  Grpc::AsyncClientImpl<inject::InjectRequest, inject::InjectResponse>* inject_client_;
+  std::shared_ptr<Grpc::AsyncClientImpl<inject::InjectRequest, inject::InjectResponse>> inject_client_;
   const google::protobuf::MethodDescriptor* method_descriptor_;
 };
 
@@ -85,8 +87,7 @@ private:
   InjectFilterConfigSharedPtr config_;
   StreamDecoderFilterCallbacks* callbacks_;
   bool inject_resp_received_;
-  //std::unique_ptr<Grpc::AsyncClientStream<inject::InjectRequest>> req_;
-  Grpc::AsyncClientStream<inject::InjectRequest>* req_;
+  Grpc::AsyncClientStream<inject::InjectRequest>* req_{};
   HeaderMap* hdrs_;
 };
 
