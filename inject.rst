@@ -6,7 +6,7 @@ in the requests. The logic that computes the headers to inject is external to En
 Header injection is conditional on trigger and antitrigger headers being present. This allows multiple injection
 filters to be stacked yet only one of them fires. For example, if the first injection filter is triggered and
 successfully injects some headers, subsequent injection filters can use those injected headers as anti-triggers
-so they don't fire.  This is important as the gRPC call must complete before envoy can forward the request to
+so they don't fire.  This is important as the gRPC call must complete before Envoy can forward the request to
 the upstream cluster.
 
 Stacking injection filters may make sense if you have multiple sources of authentication such as session cookies
