@@ -4,7 +4,7 @@
     "address": "tcp://0.0.0.0:8080",
     "use_original_dst": true,
     "filters": [
-      { "type": "read", 
+      { "type": "read",
         "name": "http_connection_manager",
         "config": {
             "codec_type": "auto",
