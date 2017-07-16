@@ -2,6 +2,7 @@
 
 #include "envoy/registry/registry.h"
 #include "envoy/server/filter_config.h"
+#include "envoy/common/exception.h"
 #include "common/json/config_schemas.h"
 #include "common/json/json_loader.h"
 #include "common/json/json_validator.h"
@@ -49,7 +50,7 @@ const std::string INJECT_SCHEMA(R"EOF(
         "items" : {"type" : "string"},
         "description": "only after successful injection, remove these headers - typically the trigger and include headers. Consider security - e.g remove session cookie after converting to short-lived jwt by injection."
       },
-      "cluster_name": { 
+      "cluster_name": {
         "type" : "string",
         "description": "name of the upstream cluster to handle the gRPC call that computes the injected header(s)"
       }
@@ -78,8 +79,13 @@ HttpFilterFactoryCb InjectFilterConfig::createFilterFactory(const Json::Object& 
 
   std::vector<std::string> thdrs = json_config.getStringArray("trigger_headers");
   std::vector<Http::LowerCaseString> thdrs_lc;
+  std::vector<std::string> trigger_cookie_names;
   thdrs_lc.reserve(thdrs.size());
   for (std::string element : thdrs) {
+    if (element.find("cookie.") == 0) {
+        trigger_cookie_names.push_back(element.substr(7));
+        continue;
+    }
     Http::LowerCaseString lcstr(element);
     thdrs_lc.push_back(lcstr);
   }
@@ -113,21 +119,32 @@ HttpFilterFactoryCb InjectFilterConfig::createFilterFactory(const Json::Object& 
   }
 
   std::vector<Http::LowerCaseString> remove_hdrs_lc;
+  std::vector<std::string> remove_cookie_names;
   if (json_config.hasObject("remove_headers") ) {
     std::vector<std::string> remove_hdrs = json_config.getStringArray("remove_headers");
     remove_hdrs_lc.reserve(remove_hdrs.size());
     for (std::string element : remove_hdrs) {
+      if (element.find("cookie.") == 0) {
+        remove_cookie_names.push_back(element.substr(7));
+        continue;
+      }
       Http::LowerCaseString lcstr(element);
-      remove_hdrs_lc.push_back(lcstr);
+      remove_hdrs_lc.push_back(std::move(lcstr));
     }
   }
-  
-  // FIXME - verify that target cluster exists & ensure no dups in trig vs includ hdrs
 
-  Http::InjectFilterConfigSharedPtr config(new Http::InjectFilterConfig(thdrs_lc, antithdrs_lc, inc_hdrs_lc, 
-                                                                        inj_hdrs_lc, remove_hdrs_lc, 
-                                                                        fac_ctx.clusterManager(),
-                                                                        json_config.getString("cluster_name")));
+  const std::string& cluster_name = json_config.getString("cluster_name");
+
+  // verify that target cluster exists
+  if (!fac_ctx.clusterManager().get(cluster_name)) {
+    throw EnvoyException("Inject filter requires 'cluster_name' cluster for gRPC inject request to be configured statically in the config file. No such cluster: " + cluster_name);
+  }
+
+  // nice to have: ensure no dups in trig vs include hdrs
+
+  Http::InjectFilterConfigSharedPtr config(new Http::InjectFilterConfig(thdrs_lc, trigger_cookie_names, antithdrs_lc, inc_hdrs_lc,
+                                                                        inj_hdrs_lc, remove_hdrs_lc, remove_cookie_names,
+                                                                        fac_ctx.clusterManager(), cluster_name));
   return [config](Http::FilterChainFactoryCallbacks& callbacks) -> void {
     callbacks.addStreamDecoderFilter(
         Http::StreamDecoderFilterSharedPtr{new Http::InjectFilter(config)});

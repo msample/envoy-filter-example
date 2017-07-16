@@ -74,6 +74,8 @@ envoy_cc_library(
         "@envoy//include/envoy/upstream:cluster_manager_interface",
         "@envoy//include/envoy/http:header_map_interface",
         "@envoy//source/common/http:header_map_lib",
+        "@envoy//source/common/http:utility_lib",
+        "@envoy//source/common/common:utility_lib",
         "@envoy//source/common/json:config_schemas_lib",
         "@envoy//source/common/json:json_loader_lib",
         "@envoy//source/common/json:json_validator_lib",
