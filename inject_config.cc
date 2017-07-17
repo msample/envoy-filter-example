@@ -37,14 +37,14 @@ const std::string INJECT_SCHEMA(R"EOF(
         "items" : {"type" : "string"},
         "description": "these request headers will be added to the inject RPC call along with the trigger headers to compute the injected headers."
       },
-      "inject_headers" : {
+      "upstream_inject_headers" : {
         "type" : "array",
         "uniqueItems" : true,
         "minItems" : 1,
         "items" : {"type" : "string"},
         "description": "names of headers desired & allowed be injected into the request. Included in inject RPC to indicate desired headers. Also prevents arbitrary header name injection."
       },
-      "remove_headers" : {
+      "upstream_remove_headers" : {
         "type" : "array",
         "uniqueItems" : true,
         "items" : {"type" : "string"},
@@ -55,7 +55,7 @@ const std::string INJECT_SCHEMA(R"EOF(
         "description": "name of the upstream cluster to handle the gRPC call that computes the injected header(s)"
       }
     },
-    "required": ["trigger_headers","inject_headers","cluster_name"],
+    "required": ["trigger_headers","upstream_inject_headers","cluster_name"],
     "additionalProperties": false
   }
 )EOF"); // "
@@ -110,26 +110,26 @@ HttpFilterFactoryCb InjectFilterConfig::createFilterFactory(const Json::Object& 
     }
   }
 
-  std::vector<std::string> inj_hdrs = json_config.getStringArray("inject_headers");
-  std::vector<Http::LowerCaseString> inj_hdrs_lc;
-  inj_hdrs_lc.reserve(inj_hdrs.size());
-  for (std::string element : inj_hdrs) {
+  std::vector<std::string> upstream_inj_hdrs = json_config.getStringArray("upstream_inject_headers");
+  std::vector<Http::LowerCaseString> upstream_inj_hdrs_lc;
+  upstream_inj_hdrs_lc.reserve(upstream_inj_hdrs.size());
+  for (std::string element : upstream_inj_hdrs) {
     Http::LowerCaseString lcstr(element);
-    inj_hdrs_lc.push_back(lcstr);
+    upstream_inj_hdrs_lc.push_back(lcstr);
   }
 
-  std::vector<Http::LowerCaseString> remove_hdrs_lc;
-  std::vector<std::string> remove_cookie_names;
-  if (json_config.hasObject("remove_headers") ) {
-    std::vector<std::string> remove_hdrs = json_config.getStringArray("remove_headers");
-    remove_hdrs_lc.reserve(remove_hdrs.size());
-    for (std::string element : remove_hdrs) {
+  std::vector<Http::LowerCaseString> upstream_remove_hdrs_lc;
+  std::vector<std::string> upstream_remove_cookie_names;
+  if (json_config.hasObject("upstream_remove_headers") ) {
+    std::vector<std::string> upstream_remove_hdrs = json_config.getStringArray("upstream_remove_headers");
+    upstream_remove_hdrs_lc.reserve(upstream_remove_hdrs.size());
+    for (std::string element : upstream_remove_hdrs) {
       if (element.find("cookie.") == 0) {
-        remove_cookie_names.push_back(element.substr(7));
+        upstream_remove_cookie_names.push_back(element.substr(7));
         continue;
       }
       Http::LowerCaseString lcstr(element);
-      remove_hdrs_lc.push_back(std::move(lcstr));
+      upstream_remove_hdrs_lc.push_back(std::move(lcstr));
     }
   }
 
@@ -143,7 +143,7 @@ HttpFilterFactoryCb InjectFilterConfig::createFilterFactory(const Json::Object& 
   // nice to have: ensure no dups in trig vs include hdrs
 
   Http::InjectFilterConfigSharedPtr config(new Http::InjectFilterConfig(thdrs_lc, trigger_cookie_names, antithdrs_lc, inc_hdrs_lc,
-                                                                        inj_hdrs_lc, remove_hdrs_lc, remove_cookie_names,
+                                                                        upstream_inj_hdrs_lc, upstream_remove_hdrs_lc, upstream_remove_cookie_names,
                                                                         fac_ctx.clusterManager(), cluster_name));
   return [config](Http::FilterChainFactoryCallbacks& callbacks) -> void {
     callbacks.addStreamDecoderFilter(

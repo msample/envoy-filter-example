@@ -7,6 +7,8 @@
 
 #include "common/grpc/common.h"
 
+#define PINT(a) reinterpret_cast<unsigned long>(a)
+
 namespace Envoy {
 namespace Http {
 
@@ -20,9 +22,9 @@ void InjectFilter::onReceiveInitialMetadata(Http::HeaderMapPtr&&) {
 
 // called for gRPC call to InjectHeader
 void InjectFilter::onReceiveMessage(std::unique_ptr<inject::InjectResponse>&& resp) {
-  std::cout << "called on onReceiveMessage on icb: " << this << std::endl;
+  ENVOY_LOG(trace, "called on onReceiveMessage on icb: {}", PINT(this));
   if (req_) {
-    std::cout << "onRecvMsmg non-nil req_ on  " << this << std::endl;
+    ENVOY_LOG(trace, "onRecvMsmg non-nil req_ on {}", PINT(this));
     req_->resetStream();
     req_ = 0;
   }
@@ -32,8 +34,8 @@ void InjectFilter::onReceiveMessage(std::unique_ptr<inject::InjectResponse>&& re
     inject_hdrs_.insert(std::pair<std::string,std::string>(h.key(), h.value()));
   }
 
-  for (const Http::LowerCaseString& element : config_->inject_headers()) {
-    std::cout << "Injecting " << element.get() << std::endl;
+  for (const Http::LowerCaseString& element : config_->upstream_inject_headers()) {
+    ENVOY_LOG(info, "Injecting {}",element.get());
     std::map<std::string,std::string>::iterator it = inject_hdrs_.find(element.get());
     if (it != inject_hdrs_.end()) {
       hdrs_->addStaticKey(element, it->second);
@@ -41,27 +43,27 @@ void InjectFilter::onReceiveMessage(std::unique_ptr<inject::InjectResponse>&& re
   }
 
   // remove any headers named in the config
-  for (const Http::LowerCaseString& element : config_->remove_headers()) {
+  for (const Http::LowerCaseString& element : config_->upstream_remove_headers()) {
     hdrs_->remove(element);
   }
 
   // remove any cookies as defined in config
-  for (const std::string& name: config_->remove_cookie_names()) {
+  for (const std::string& name: config_->upstream_remove_cookie_names()) {
     removeNamedCookie(name, *hdrs_);
   }
 
   callbacks_->continueDecoding();
-  std::cout << "exiting onReceiveMessage on icb: " << this << std::endl;
+  ENVOY_LOG(trace,"exiting onReceiveMessage on icb: {}", PINT(this));
 }
 
 // called for gRPC call to InjectHeader
 void InjectFilter::onReceiveTrailingMetadata(Http::HeaderMapPtr&&)  {
-  std::cout << "called on onReceiveTrailingMetadata on icb: " << this << std::endl;
+  ENVOY_LOG(trace,"called on onReceiveTrailingMetadata on icb: {}", PINT(this));
 }
 
 // called for gRPC call to InjectHeader
 void InjectFilter::onRemoteClose(Grpc::Status::GrpcStatus) {
-  std::cout << "onRemoteClose called on icb: " << this << std::endl;
+  ENVOY_LOG(trace,"onRemoteClose called on icb: {}", PINT(this));
 }
 
 // decodeHeaders - see if any configured headers are present, and if so send them to
@@ -108,7 +110,7 @@ FilterHeadersStatus InjectFilter::decodeHeaders(HeaderMap& headers, bool) {
   if (!triggered) {
     return FilterHeadersStatus::Continue;
   }
-  std::cout << "Inject trigger matched: " << this << std::endl;
+  ENVOY_LOG(info, "Inject trigger matched: {}", PINT(this));
 
   // add non-triggering headers of interest to inject request
   for (const Http::LowerCaseString& element : config_->include_headers()) {
@@ -121,7 +123,7 @@ FilterHeadersStatus InjectFilter::decodeHeaders(HeaderMap& headers, bool) {
   }
 
   // add names of headers we want/allow injected to inject request
-  for (const Http::LowerCaseString& element : config_->inject_headers()) {
+  for (const Http::LowerCaseString& element : config_->upstream_inject_headers()) {
     ir.add_injectheadernames(element.get());
   }
 
@@ -135,17 +137,17 @@ FilterHeadersStatus InjectFilter::decodeHeaders(HeaderMap& headers, bool) {
 
   // START TEMP SECTION - REMOVE WHEN gRPC working
   // demo - fake out injected headers
-  for (const Http::LowerCaseString& element : config_->inject_headers()) {
+  for (const Http::LowerCaseString& element : config_->upstream_inject_headers()) {
     headers.addStaticKey(element, "example-injected-header-value");
   }
 
   // remove any cookies as defined in config
-  for (const std::string& name: config_->remove_cookie_names()) {
+  for (const std::string& name: config_->upstream_remove_cookie_names()) {
     removeNamedCookie(name, headers);
   }
 
   // remove any headers as defined in config
-  for (const Http::LowerCaseString& name: config_->remove_headers()) {
+  for (const Http::LowerCaseString& name: config_->upstream_remove_headers()) {
     headers.remove(name);
   }
 
@@ -172,9 +174,9 @@ void InjectFilter::setDecoderFilterCallbacks(StreamDecoderFilterCallbacks& callb
 }
 
 void InjectFilter::onDestroy() {
-  std::cout << "decoder filter onDestroy called on: " << this << std::endl;
+  ENVOY_LOG(trace,"decoder filter onDestroy called on: {}", PINT(this));
   if (req_) {
-    std::cout << "req_ non-nil" << std::endl;
+    ENVOY_LOG(info, "req_ non-nil in destroy on: {}", PINT(this));
     req_->resetStream();
   }
 }

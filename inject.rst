@@ -22,8 +22,8 @@ your OAUTH authorization server while another talks to your session service.
       "antitrigger_headers": [],
       "trigger_headers": [],
       "include_headers": [],
-      "inject_headers": [],
-      "remove_headers": [],
+      "upstream_inject_headers": [],
+      "upstream_remove_headers": [],
       "cluster_name": "...",
       "timeout_ms": "..."
     }
@@ -38,14 +38,14 @@ antitrigger_headers
 
 trigger_headers
   *(required, array)* header name strings, where any of which present
-  in a requests will cause injection to be attempted unless an
+  in a request will cause injection to be attempted unless an
   antitrigger is present.  These headers names also support
   "cookie.(cookie-name)" syntax so you can trigger on the presents of
   a specific cookie. For example, "cookie.session" will trigger
   injection if a a cookie named "session" (case sensitive) is present
   in the request.  All trigger headers will be passed as paramters to
-  the gRPC injection request, for example, to allow a session id to
-  be converted to a JWT containing the user id.
+  the gRPC injection request, for example, to allow a session id to be
+  converted to a JWT containing the user id.
 
 include_headers
   *(optional, array)* if triggered, these header names and values will
@@ -53,7 +53,7 @@ include_headers
   any present trigger headers. They provide information to the
   injection sevice in order to compute the injected header values.
 
-inject_headers
+upstream_inject_headers
   *(required, array)* header name strings desired to be injected into
   the upstream request.  These will be returned in the gRPC inject
   response.  Only headers named in this list are allowed to be
@@ -66,7 +66,7 @@ inject_headers
   already exists in the request, the injected one replaces the
   original one.
 
-remove_headers
+upstream_remove_headers
   *(optional, array)* header name strings that should be removed from
   the upstream request once injection has been successfully performed.
   The "cookie.(cookie-name)" syntax is also supported here.  This
