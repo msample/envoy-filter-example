@@ -32,8 +32,8 @@
                     "name": "inject",
                     "config": {
                         "trigger_headers": ["cookie.sessId"],
-                        "inject_headers": ["x-myco-jwt"],
-                        "remove_headers": ["cookie.sessId"],
+                        "upstream_inject_headers": ["x-myco-jwt"],
+                        "upstream_remove_headers": ["cookie.sessId"],
                         "cluster_name": "sessions"
                     }
                 },
@@ -44,8 +44,8 @@
                         "trigger_headers": ["authorization"],
                         "antitrigger_headers": ["x-myco-jwt"],
                         "include_headers": [],
-                        "inject_headers": ["x-myco-jwt", "x-myco-jwt-v2"],
-                        "remove_headers": ["authorization"],
+                        "upstream_inject_headers": ["x-myco-jwt", "x-myco-jwt-v2"],
+                        "upstream_remove_headers": ["authorization"],
                         "cluster_name": "oauth"
                     }
                 },
@@ -56,8 +56,8 @@
                         "trigger_headers": ["x-myco-authn"],
                         "antitrigger_headers": ["x-myco-jwt", "x-myco-jwt-v2"],
                         "include_headers": ["x-myco-extra"],
-                        "inject_headers": ["x-myco-jwt-v2", "x-myco-jwt-v3"],
-                        "remove_headers": ["x-myco-authn"],
+                        "upstream_inject_headers": ["x-myco-jwt-v2", "x-myco-jwt-v3"],
+                        "upstream_remove_headers": ["x-myco-authn"],
                         "cluster_name": "legacyauthn"
                     }
                 },
