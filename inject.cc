@@ -17,17 +17,9 @@ void InjectFilter::onCreateInitialMetadata(Http::HeaderMap& ) {
 }
 
 // called for gRPC call to InjectHeader
-void InjectFilter::onReceiveInitialMetadata(Http::HeaderMapPtr&&) {
-}
-
-// called for gRPC call to InjectHeader
-void InjectFilter::onReceiveMessage(std::unique_ptr<inject::InjectResponse>&& resp) {
+void InjectFilter::onSuccess(std::unique_ptr<inject::InjectResponse>&& resp) {
   ENVOY_LOG(trace, "called on onReceiveMessage on icb: {}", PINT(this));
-  if (req_) {
-    ENVOY_LOG(trace, "onRecvMsmg non-nil req_ on {}", PINT(this));
-    req_->resetStream();
-    req_ = 0;
-  }
+
   std::map<std::string,std::string> inject_hdrs_;
   for (int i = 0; i < resp->headers_size(); ++i) {
     const inject::Header& h = resp->headers(i);
@@ -57,12 +49,7 @@ void InjectFilter::onReceiveMessage(std::unique_ptr<inject::InjectResponse>&& re
 }
 
 // called for gRPC call to InjectHeader
-void InjectFilter::onReceiveTrailingMetadata(Http::HeaderMapPtr&&)  {
-  ENVOY_LOG(trace,"called on onReceiveTrailingMetadata on icb: {}", PINT(this));
-}
-
-// called for gRPC call to InjectHeader
-void InjectFilter::onRemoteClose(Grpc::Status::GrpcStatus) {
+void InjectFilter::onFailure(Grpc::Status::GrpcStatus) {
   ENVOY_LOG(trace,"onRemoteClose called on icb: {}", PINT(this));
 }
 
@@ -129,14 +116,11 @@ FilterHeadersStatus InjectFilter::decodeHeaders(HeaderMap& headers, bool) {
 
 
   // issues here - if don't reset stream in this fcn (we can't if we want the reply) we get seg fault.
-  // req_ = config_->inject_client()->start(config_->method_descriptor(), *this, std::chrono::milliseconds(10));
-  // req_->sendMessage(ir);
-  // req_->closeStream();
-  // no segv if reset... but no progress either
-  // req_->resetStream();
+  req_ = config_->inject_client()->send(config_->method_descriptor(), ir, *this, std::chrono::milliseconds(10));
 
   // START TEMP SECTION - REMOVE WHEN gRPC working
   // demo - fake out injected headers
+  /*
   for (const Http::LowerCaseString& element : config_->upstream_inject_headers()) {
     headers.addStaticKey(element, "example-injected-header-value");
   }
@@ -154,6 +138,7 @@ FilterHeadersStatus InjectFilter::decodeHeaders(HeaderMap& headers, bool) {
   // pretend we're done
   return FilterHeadersStatus::Continue;
   // END TEMP SECTION - REMOVE WHEN gRPC working
+  */
 
   hdrs_ = &headers;
   // give control back to event loop so gRPC inject response can be received
@@ -175,10 +160,6 @@ void InjectFilter::setDecoderFilterCallbacks(StreamDecoderFilterCallbacks& callb
 
 void InjectFilter::onDestroy() {
   ENVOY_LOG(trace,"decoder filter onDestroy called on: {}", PINT(this));
-  if (req_) {
-    ENVOY_LOG(info, "req_ non-nil in destroy on: {}", PINT(this));
-    req_->resetStream();
-  }
 }
 
 static const Http::LowerCaseString cookie_hdr_name{"cookie"};
