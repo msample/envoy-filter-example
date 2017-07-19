@@ -96,10 +96,7 @@
               "hosts": [{"url": "tcp://169.254.17.1:9001"}],
               "service_name": "sessions",
               "max_requests_per_connection": 10000,
-              "features": "http2",
-              "ssl_context" : {
-                  "alpn_protocols": "h2"
-              }
+              "features": "http2"
           },
           {
               "name": "oauth",
@@ -109,10 +106,7 @@
               "hosts": [{"url": "tcp://169.254.17.1:9001"}],
               "service_name": "oauth",
               "max_requests_per_connection": 10000,
-              "features": "http2",
-              "ssl_context" : {
-                  "alpn_protocols": "h2"
-              }
+              "features": "http2"
           },
           {
               "name": "legacyauthn",
@@ -122,10 +116,7 @@
               "hosts": [{"url": "tcp://169.254.17.1:9001"}],
               "service_name": "legacyauthn",
               "max_requests_per_connection": 10000,
-              "features": "http2",
-              "ssl_context" : {
-                  "alpn_protocols": "h2"
-              }
+              "features": "http2"
           }]
   }
 }
