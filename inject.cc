@@ -18,7 +18,7 @@ void InjectFilter::onCreateInitialMetadata(Http::HeaderMap& ) {
 
 // called for gRPC call to InjectHeader
 void InjectFilter::onSuccess(std::unique_ptr<inject::InjectResponse>&& resp) {
-  ENVOY_LOG(trace, "called on onReceiveMessage on icb: {}", PINT(this));
+  ENVOY_LOG(trace, "called on onSuccess on icb: {}", PINT(this));
 
   std::map<std::string,std::string> inject_hdrs_;
   for (int i = 0; i < resp->headers_size(); ++i) {
@@ -45,12 +45,12 @@ void InjectFilter::onSuccess(std::unique_ptr<inject::InjectResponse>&& resp) {
   }
 
   callbacks_->continueDecoding();
-  ENVOY_LOG(trace,"exiting onReceiveMessage on icb: {}", PINT(this));
+  ENVOY_LOG(trace,"exiting onSuccess on icb: {}", PINT(this));
 }
 
 // called for gRPC call to InjectHeader
 void InjectFilter::onFailure(Grpc::Status::GrpcStatus) {
-  ENVOY_LOG(trace,"onRemoteClose called on icb: {}", PINT(this));
+  ENVOY_LOG(trace,"onFailure called on icb: {}", PINT(this));
 }
 
 // decodeHeaders - see if any configured headers are present, and if so send them to
