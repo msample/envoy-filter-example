@@ -51,6 +51,7 @@ void InjectFilter::onSuccess(std::unique_ptr<inject::InjectResponse>&& resp) {
 // called for gRPC call to InjectHeader
 void InjectFilter::onFailure(Grpc::Status::GrpcStatus) {
   ENVOY_LOG(trace,"onFailure called on icb: {}", PINT(this));
+  callbacks_->continueDecoding();
 }
 
 // decodeHeaders - see if any configured headers are present, and if so send them to
@@ -199,7 +200,15 @@ void InjectFilter::removeNamedCookie(const std::string& cookie_name, std::string
     size_t end_prev_cookie_idx = std::string::npos;
     bool is_first = true;
     if (start_idx != 0) {
+      size_t prev_semicolon_idx = cookie_hdr_value.find_last_of(";", start_idx-1);
       end_prev_cookie_idx = cookie_hdr_value.find_last_not_of(" ;", start_idx-1); // skip semi-colon too!
+      if ((end_prev_cookie_idx != std::string::npos)
+          && ((prev_semicolon_idx == std::string::npos)
+              || (prev_semicolon_idx < end_prev_cookie_idx))) {
+        // we matched in cookie data (RHS of equal) so leave as is
+        start_idx = cookie_hdr_value.find(cookie_name + "=", start_idx + cookie_name.length() + 2); // any more?
+        continue;
+      }
       if (std::string::npos != end_prev_cookie_idx) {
         is_first = false;
       }
