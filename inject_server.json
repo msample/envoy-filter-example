@@ -32,6 +32,7 @@
                     "name": "inject",
                     "config": {
                         "trigger_headers": ["cookie.sessId"],
+                        "include_headers": [":path"],
                         "upstream_inject_headers": ["x-myco-jwt"],
                         "upstream_remove_headers": ["cookie.sessId"],
                         "cluster_name": "sessions"

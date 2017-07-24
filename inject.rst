@@ -40,18 +40,22 @@ trigger_headers
   *(required, array)* header name strings, where any of which present
   in a request will cause injection to be attempted unless an
   antitrigger is present.  These headers names also support
-  "cookie.(cookie-name)" syntax so you can trigger on the presents of
+  "cookie.(cookie-name)" syntax so you can trigger on the presence of
   a specific cookie. For example, "cookie.session" will trigger
-  injection if a a cookie named "session" (case sensitive) is present
-  in the request.  All trigger headers will be passed as paramters to
+  injection if a cookie named "session" (case sensitive) is present in
+  the request.  All trigger headers will be passed as parameters to
   the gRPC injection request, for example, to allow a session id to be
-  converted to a JWT containing the user id.
+  converted to a JWT containing the user id.  Named cookie 'headers'
+  are passed with the "cookie.(name)" name and a value that is just
+  the named cookie value with any optional quotes removed.
 
-include_headers
+include
   *(optional, array)* if triggered, these header names and values will
   be included as parameters to the gRPC injection request along with
   any present trigger headers. They provide information to the
   injection sevice in order to compute the injected header values.
+  The follwoing HTTP2 pseudo-headers are available here: :path,
+  :authority, :method.  The :path includes query parameters.
 
 upstream_inject_headers
   *(required, array)* header name strings desired to be injected into
