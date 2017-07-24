@@ -77,9 +77,9 @@ FilterHeadersStatus InjectFilter::decodeHeaders(HeaderMap& headers, bool) {
     const Http::HeaderEntry* h = headers.get(element);
     if (h) {
       triggered = true;
-      inject::Header* h =  ir.mutable_inputheaders()->Add();
-      h->set_key(h->key().c_str());
-      h->set_value(h->value().c_str());
+      inject::Header* ih =  ir.mutable_inputheaders()->Add();
+      ih->set_key(h->key().c_str());
+      ih->set_value(h->value().c_str());
     }
   }
 
@@ -104,9 +104,9 @@ FilterHeadersStatus InjectFilter::decodeHeaders(HeaderMap& headers, bool) {
   for (const Http::LowerCaseString& element : config_->include_headers()) {
     const Http::HeaderEntry* h = headers.get(element);
     if (h) {
-      inject::Header* h =  ir.mutable_inputheaders()->Add();
-      h->set_key(h->key().c_str());
-      h->set_value(h->value().c_str());
+      inject::Header* ih =  ir.mutable_inputheaders()->Add();
+      ih->set_key(h->key().c_str());
+      ih->set_value(h->value().c_str());
     }
   }
 
@@ -115,31 +115,7 @@ FilterHeadersStatus InjectFilter::decodeHeaders(HeaderMap& headers, bool) {
     ir.add_injectheadernames(element.get());
   }
 
-
-  // issues here - if don't reset stream in this fcn (we can't if we want the reply) we get seg fault.
   req_ = config_->inject_client()->send(config_->method_descriptor(), ir, *this, std::chrono::milliseconds(10));
-
-  // START TEMP SECTION - REMOVE WHEN gRPC working
-  // demo - fake out injected headers
-  /*
-  for (const Http::LowerCaseString& element : config_->upstream_inject_headers()) {
-    headers.addStaticKey(element, "example-injected-header-value");
-  }
-
-  // remove any cookies as defined in config
-  for (const std::string& name: config_->upstream_remove_cookie_names()) {
-    removeNamedCookie(name, headers);
-  }
-
-  // remove any headers as defined in config
-  for (const Http::LowerCaseString& name: config_->upstream_remove_headers()) {
-    headers.remove(name);
-  }
-
-  // pretend we're done
-  return FilterHeadersStatus::Continue;
-  // END TEMP SECTION - REMOVE WHEN gRPC working
-  */
 
   hdrs_ = &headers;
   // give control back to event loop so gRPC inject response can be received

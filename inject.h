@@ -37,12 +37,11 @@ public:
                      std::vector<Http::LowerCaseString>& upstream_remove_headers,
                      std::vector<std::string>& upstream_remove_cookie_names,
                      Upstream::ClusterManager& cluster_mgr,
-                     std::string cluster_name,
-                     Event::Dispatcher& dispatcher):
+                     std::string cluster_name):
   trigger_headers_(trigger_headers), trigger_cookie_names_(trigger_cookie_names), antitrigger_headers_(antitrigger_headers),
     include_headers_(include_headers), upstream_inject_headers_(upstream_inject_headers), upstream_remove_headers_(upstream_remove_headers),
     upstream_remove_cookie_names_(upstream_remove_cookie_names),
-    inject_client_(new Grpc::AsyncClientImpl<inject::InjectRequest, inject::InjectResponse>(cluster_mgr, dispatcher, cluster_name)),
+    inject_client_(new Grpc::AsyncClientImpl<inject::InjectRequest, inject::InjectResponse>(cluster_mgr, cluster_name)),
     method_descriptor_(inject::inject::descriptor()->FindMethodByName("injectHeaders")) {}
 
   const std::vector<Http::LowerCaseString>& trigger_headers() { return trigger_headers_; }
