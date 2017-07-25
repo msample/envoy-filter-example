@@ -81,42 +81,42 @@
           {
               "name": "services",
               "type": "static",
-              "connect_timeout_ms": 1000,
+              "connect_timeout_ms": 2000,
               "lb_type": "round_robin",
               "hosts": [{"url": "tcp://169.254.17.1:8443"}],
               "service_name": "services",
-              "max_requests_per_connection": 10000,
+              "max_requests_per_connection": 100000,
               "ssl_context" : {
               }
           },
           {
               "name": "sessions",
               "type": "static",
-              "connect_timeout_ms": 1000,
+              "connect_timeout_ms": 2000,
               "lb_type": "round_robin",
               "hosts": [{"url": "tcp://169.254.17.1:9001"}],
               "service_name": "sessions",
-              "max_requests_per_connection": 10000,
+              "max_requests_per_connection": 100000,
               "features": "http2"
           },
           {
               "name": "oauth",
               "type": "static",
-              "connect_timeout_ms": 1000,
+              "connect_timeout_ms": 2000,
               "lb_type": "round_robin",
               "hosts": [{"url": "tcp://169.254.17.1:9001"}],
               "service_name": "oauth",
-              "max_requests_per_connection": 10000,
+              "max_requests_per_connection": 100000,
               "features": "http2"
           },
           {
               "name": "legacyauthn",
               "type": "static",
-              "connect_timeout_ms": 1000,
+              "connect_timeout_ms": 2000,
               "lb_type": "round_robin",
               "hosts": [{"url": "tcp://169.254.17.1:9001"}],
               "service_name": "legacyauthn",
-              "max_requests_per_connection": 10000,
+              "max_requests_per_connection": 100000,
               "features": "http2"
           }]
   }
