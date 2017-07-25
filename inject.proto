@@ -1,12 +1,9 @@
 syntax = "proto3";
 
-// needed to work with the async grpc support in Envoy
-option cc_generic_services = true;
-
 package inject;
 
-service inject {
-  rpc injectHeaders(InjectRequest) returns (InjectResponse) {}
+service InjectService {
+  rpc InjectHeaders(InjectRequest) returns (InjectResponse) {}
 }
 
 message InjectRequest {

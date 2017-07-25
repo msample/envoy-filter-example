@@ -49,8 +49,8 @@ void InjectFilter::onSuccess(std::unique_ptr<inject::InjectResponse>&& resp) {
 }
 
 // called for gRPC call to InjectHeader
-void InjectFilter::onFailure(Grpc::Status::GrpcStatus) {
-  ENVOY_LOG(trace,"onFailure called on icb: {}", PINT(this));
+void InjectFilter::onFailure(Grpc::Status::GrpcStatus status) {
+  ENVOY_LOG(warn,"onFailure({}) called on icb: {}", status, PINT(this));
   callbacks_->continueDecoding();
 }
 
@@ -71,13 +71,14 @@ FilterHeadersStatus InjectFilter::decodeHeaders(HeaderMap& headers, bool) {
     }
   }
 
+  //inject::InjectRequest& ir = *(new inject::InjectRequest());
   inject::InjectRequest ir;
   bool triggered = false;
   for (const Http::LowerCaseString& element : config_->trigger_headers()) {
     const Http::HeaderEntry* h = headers.get(element);
     if (h) {
       triggered = true;
-      inject::Header* ih =  ir.mutable_inputheaders()->Add();
+      inject::Header* ih = ir.mutable_inputheaders()->Add();
       ih->set_key(h->key().c_str());
       ih->set_value(h->value().c_str());
     }
@@ -90,9 +91,9 @@ FilterHeadersStatus InjectFilter::decodeHeaders(HeaderMap& headers, bool) {
       continue;
     }
     triggered = true;
-    inject::Header* h =  ir.mutable_inputheaders()->Add();
-    h->set_key(name);
-    h->set_value(cookie_value);
+    inject::Header* ih = ir.mutable_inputheaders()->Add();
+    ih->set_key(name.c_str());
+    ih->set_value(cookie_value.c_str());
   }
 
   if (!triggered) {
@@ -115,7 +116,13 @@ FilterHeadersStatus InjectFilter::decodeHeaders(HeaderMap& headers, bool) {
     ir.add_injectheadernames(element.get());
   }
 
-  req_ = config_->inject_client()->send(config_->method_descriptor(), ir, *this, std::chrono::milliseconds(10));
+  client_ = config_->inject_client();
+  req_ = client_->send(config_->method_descriptor(), ir, *this, std::chrono::milliseconds(60));
+
+  if (!req_) {
+    ENVOY_LOG(warn, "Could not send inject gRPC request. Null req returned by send(). {}", PINT(this));
+    return FilterHeadersStatus::Continue;
+  }
 
   hdrs_ = &headers;
   // give control back to event loop so gRPC inject response can be received
