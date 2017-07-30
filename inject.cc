@@ -44,14 +44,14 @@ void InjectFilter::onSuccess(std::unique_ptr<inject::InjectResponse>&& resp) {
     removeNamedCookie(name, *hdrs_);
   }
 
-  callbacks_->continueDecoding();
+  decoder_callbacks_->continueDecoding();
   ENVOY_LOG(trace,"exiting onSuccess on icb: {}", PINT(this));
 }
 
 // called for gRPC call to InjectHeader
 void InjectFilter::onFailure(Grpc::Status::GrpcStatus status) {
   ENVOY_LOG(warn,"onFailure({}) called on icb: {}", status, PINT(this));
-  callbacks_->continueDecoding();
+  decoder_callbacks_->continueDecoding();
 }
 
 // decodeHeaders - see if any configured headers are present, and if so send them to
@@ -139,12 +139,31 @@ FilterTrailersStatus InjectFilter::decodeTrailers(HeaderMap&) {
 }
 
 void InjectFilter::setDecoderFilterCallbacks(StreamDecoderFilterCallbacks& callbacks) {
-  callbacks_ = &callbacks;
+  decoder_callbacks_ = &callbacks;
 }
 
 void InjectFilter::onDestroy() {
   ENVOY_LOG(trace,"decoder filter onDestroy called on: {}", PINT(this));
 }
+
+
+FilterHeadersStatus InjectFilter::encodeHeaders(HeaderMap&, bool) {
+  return FilterHeadersStatus::Continue;
+}
+
+FilterDataStatus InjectFilter::encodeData(Buffer::Instance&, bool) {
+  return FilterDataStatus::Continue;
+}
+
+FilterTrailersStatus InjectFilter::encodeTrailers(HeaderMap&) {
+  return FilterTrailersStatus::Continue;
+}
+
+void InjectFilter::setEncoderFilterCallbacks(StreamEncoderFilterCallbacks& callbacks) {
+  encoder_callbacks_ = &callbacks;
+}
+
+
 
 static const Http::LowerCaseString cookie_hdr_name{"cookie"};
 

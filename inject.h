@@ -76,7 +76,7 @@ public:
 
 typedef std::shared_ptr<InjectFilterConfig> InjectFilterConfigSharedPtr;
 
-class InjectFilter : Logger::Loggable<Logger::Id::filter>, public StreamDecoderFilter, Grpc::AsyncRequestCallbacks<inject::InjectResponse> {
+class InjectFilter : Logger::Loggable<Logger::Id::filter>, public StreamFilter, Grpc::AsyncRequestCallbacks<inject::InjectResponse> {
 public:
  InjectFilter(InjectFilterConfigSharedPtr config): config_(config) {}
 
@@ -89,6 +89,12 @@ public:
   FilterTrailersStatus decodeTrailers(HeaderMap& trailers) override;
   void setDecoderFilterCallbacks(StreamDecoderFilterCallbacks& callbacks) override;
 
+  // Http::StreamEncoderFilter
+  virtual FilterHeadersStatus encodeHeaders(HeaderMap& headers, bool end_stream) override;
+  virtual FilterDataStatus encodeData(Buffer::Instance& data, bool end_stream) override;
+  virtual FilterTrailersStatus encodeTrailers(HeaderMap& trailers) override;
+  virtual void setEncoderFilterCallbacks(StreamEncoderFilterCallbacks& callbacks) override;
+
   // Grpc::AsyncRequestCallbacks
   void onCreateInitialMetadata(Http::HeaderMap& metadata) override;
   void onSuccess(std::unique_ptr<inject::InjectResponse>&& response) override;
@@ -99,7 +105,8 @@ public:
 private:
 
   InjectFilterConfigSharedPtr config_;
-  StreamDecoderFilterCallbacks* callbacks_;
+  StreamDecoderFilterCallbacks* decoder_callbacks_;
+  StreamEncoderFilterCallbacks* encoder_callbacks_;
   bool inject_resp_received_;
   std::unique_ptr<Grpc::AsyncClientImpl<inject::InjectRequest, inject::InjectResponse>> client_;
   Grpc::AsyncRequest* req_{};

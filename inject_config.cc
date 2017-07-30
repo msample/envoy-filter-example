@@ -69,7 +69,7 @@ public:
                                           const std::string& stat_prefix,
                                           FactoryContext& context) override;
   std::string name() override { return "inject"; }
-  HttpFilterType type() override { return HttpFilterType::Decoder; }
+  HttpFilterType type() override { return HttpFilterType::Both; }
 };
 
 HttpFilterFactoryCb InjectFilterConfig::createFilterFactory(const Json::Object& json_config,
@@ -146,8 +146,8 @@ HttpFilterFactoryCb InjectFilterConfig::createFilterFactory(const Json::Object& 
                                                                         upstream_inj_hdrs_lc, upstream_remove_hdrs_lc, upstream_remove_cookie_names,
                                                                         fac_ctx.clusterManager(), cluster_name));
   return [config](Http::FilterChainFactoryCallbacks& callbacks) -> void {
-    callbacks.addStreamDecoderFilter(
-        Http::StreamDecoderFilterSharedPtr{new Http::InjectFilter(config)});
+    callbacks.addStreamFilter(
+        Http::StreamFilterSharedPtr{new Http::InjectFilter(config)});
   };
 
 }

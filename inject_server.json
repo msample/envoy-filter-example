@@ -28,7 +28,7 @@
             },
             "filters": [
                 {
-                    "type": "decoder",
+                    "type": "both",
                     "name": "inject",
                     "config": {
                         "trigger_headers": ["cookie.sessId"],
@@ -39,7 +39,7 @@
                     }
                 },
                 {
-                    "type": "decoder",
+                    "type": "both",
                     "name": "inject",
                     "config": {
                         "trigger_headers": ["authorization"],
@@ -51,7 +51,7 @@
                     }
                 },
                 {
-                    "type": "decoder",
+                    "type": "both",
                     "name": "inject",
                     "config": {
                         "trigger_headers": ["x-myco-authn"],
