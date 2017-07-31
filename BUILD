@@ -98,7 +98,7 @@ envoy_cc_library(
 envoy_cc_test(
     name = "inject_integration_test",
     srcs = ["inject_integration_test.cc"],
-    data =  ["inject_server.json"],
+    data =  ["inject_server2.json"],
     repository = "@envoy",
     deps = [
         ":inject_config",

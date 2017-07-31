@@ -2,7 +2,6 @@
 
 #include <string>
 #include <vector>
-#include <iostream>
 #include <chrono>
 
 #include "common/grpc/common.h"
@@ -18,7 +17,6 @@ void InjectFilter::onCreateInitialMetadata(Http::HeaderMap& ) {
 
 // called for gRPC call to InjectHeader
 void InjectFilter::onSuccess(std::unique_ptr<inject::InjectResponse>&& resp) {
-  ENVOY_LOG(trace, "called on onSuccess on icb: {}", PINT(this));
 
   std::map<std::string,std::string> inject_hdrs_;
   for (int i = 0; i < resp->headers_size(); ++i) {
@@ -43,7 +41,6 @@ void InjectFilter::onSuccess(std::unique_ptr<inject::InjectResponse>&& resp) {
   for (const std::string& name: config_->upstream_remove_cookie_names()) {
     removeNamedCookie(name, *hdrs_);
   }
-
   decoder_callbacks_->continueDecoding();
   ENVOY_LOG(trace,"exiting onSuccess on icb: {}", PINT(this));
 }
@@ -92,7 +89,8 @@ FilterHeadersStatus InjectFilter::decodeHeaders(HeaderMap& headers, bool) {
     }
     triggered = true;
     inject::Header* ih = ir.mutable_inputheaders()->Add();
-    ih->set_key(name.c_str());
+    //    ih->set_key("cookie." + name.c_str());
+    ih->mutable_key()->append("cookie.").append(name);
     ih->set_value(cookie_value.c_str());
   }
 
