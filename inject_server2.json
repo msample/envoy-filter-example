@@ -1,0 +1,109 @@
+{
+  "listeners": [
+  {
+    "address": "tcp://{{ ip_loopback_address }}:0",
+    "filters": [
+    {
+      "type": "read",
+      "name": "http_connection_manager",
+      "config": {
+        "codec_type": "http1",
+        "access_log": [
+        {
+          "path": "/dev/null",
+          "filter" : {
+            "type": "logical_or",
+            "filters": [
+              {
+                "type": "status_code",
+                "op": ">=",
+                "value": 500
+              },
+              {
+                "type": "duration",
+                "op": ">=",
+                "value": 1000000
+              }
+            ]
+          }
+        },
+        {
+          "path": "/dev/null"
+        }],
+        "stat_prefix": "injector",
+        "route_config":
+        {
+          "virtual_hosts": [
+            {
+              "name": "integration",
+              "domains": [ "*" ],
+              "routes": [
+                {
+                  "prefix": "/",
+                  "cluster": "traffic"
+                }
+              ]
+            }
+          ]
+        },
+        "filters": [
+          {
+            "type": "both",
+            "name": "inject",
+            "config": {
+              "trigger_headers": ["cookie.sessId"],
+              "include_headers": [":path"],
+              "upstream_inject_headers": ["x-myco-jwt"],
+              "upstream_remove_headers": ["cookie.sessId"],
+              "cluster_name": "injector0"
+            }
+          },
+          {
+            "type": "both",
+            "name": "inject",
+            "config": {
+              "trigger_headers": ["authorization"],
+              "antitrigger_headers": ["x-myco-jwt"],
+              "include_headers": [],
+              "upstream_inject_headers": ["x-myco-jwt", "x-myco-jwt-v2"],
+              "upstream_remove_headers": ["authorization"],
+              "cluster_name": "injector1"
+            }
+          },
+          { "type": "decoder", "name": "router", "config": {} }
+        ]
+      }
+    }]
+  }],
+
+  "admin": { "access_log_path": "/dev/null", "address": "tcp://{{ ip_loopback_address }}:0" },
+  "statsd_local_udp_port": 8125,
+
+  "cluster_manager": {
+    "clusters": [
+    {
+      "name": "traffic",
+      "features": "http2",
+      "connect_timeout_ms": 5000,
+      "type": "static",
+      "lb_type": "round_robin",
+      "hosts": [{"url": "tcp://{{ ip_loopback_address }}:{{ traffic_0 }}"}]
+    },
+    {
+      "name": "injector0",
+      "features": "http2",
+      "connect_timeout_ms": 5000,
+      "type": "static",
+      "lb_type": "round_robin",
+      "hosts": [{"url": "tcp://{{ ip_loopback_address }}:{{ injector0_0 }}"}]
+    },
+    {
+      "name": "injector1",
+      "features": "http2",
+      "connect_timeout_ms": 5000,
+      "type": "static",
+      "lb_type": "round_robin",
+      "hosts": [{"url": "tcp://{{ ip_loopback_address }}:{{ injector1_0 }}"}]
+    }]
+  }
+}
