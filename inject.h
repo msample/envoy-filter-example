@@ -108,7 +108,7 @@ private:
   InjectFilterConfigSharedPtr config_;
   StreamDecoderFilterCallbacks* decoder_callbacks_;
   StreamEncoderFilterCallbacks* encoder_callbacks_;
-  bool inject_resp_received_;
+  bool initiating_call_{};
   State state_{State::NotTriggered};
   std::unique_ptr<Grpc::AsyncClientImpl<inject::InjectRequest, inject::InjectResponse>> client_;
   Grpc::AsyncRequest* req_{};
