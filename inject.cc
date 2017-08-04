@@ -43,7 +43,12 @@ void InjectFilter::onSuccess(std::unique_ptr<inject::InjectResponse>&& resp) {
   }
   state_ = State::WaitingForUpstream;
   ENVOY_LOG(trace,"exiting onSuccess on icb: {}", PINT(this));
-  decoder_callbacks_->continueDecoding();
+
+  if (!initiating_call_) {
+    // if initiating_call we will trigger continued decoding by return
+    // value from decodeHeaders call send() has yet to return to
+    decoder_callbacks_->continueDecoding();
+  }
 }
 
 // called for gRPC call to InjectHeader
@@ -135,7 +140,14 @@ FilterHeadersStatus InjectFilter::decodeHeaders(HeaderMap& headers, bool) {
 
   client_ = config_->inject_client();
   state_ = State::InjectRequestSent;
+
+  // initiating_call_ looks weird but is state wrapper that prevents
+  // onSuccess() from continuing decode if we get inject response after
+  // passing control to event loop via send() call below and before it
+  // returns.
+  initiating_call_ = true;
   req_ = client_->send(config_->method_descriptor(), ir, *this, std::chrono::milliseconds(4000));
+  initiating_call_ = false;
 
   if (!req_) {
     ENVOY_LOG(warn, "Could not send inject gRPC request. Null req returned by send(). {}", PINT(this));
