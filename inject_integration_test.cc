@@ -146,6 +146,27 @@ TEST_P(InjectIntegrationTest, Ok) {
   cleanup();
 }
 
+TEST_P(InjectIntegrationTest, ConnectImmediateDisconnect) {
+  initiateClientConnection();
+  fake_inject0_connection_ = fake_upstreams_[INJECT0_STREAM_IND]->waitForHttpConnection(*dispatcher_);
+  fake_inject0_connection_->close();
+  fake_inject0_connection_->waitForDisconnect(true);
+  fake_inject0_connection_ = nullptr;
+  // fails in passthrough mode for now
+  waitForSuccessfulUpstreamResponse();
+  cleanup();
+}
+
+TEST_P(InjectIntegrationTest, Timeout) {
+  initiateClientConnection();
+  waitForInject0Request();
+  // we dont send a response so filter should timeout waiting for
+  // response and passthrough
+  waitForSuccessfulUpstreamResponse();
+  cleanup();
+}
+
+
 } // Envoy
 
 

@@ -103,12 +103,11 @@ public:
   static void removeNamedCookie(const std::string& key, Http::HeaderMap& headers);
   static void removeNamedCookie(const std::string& cookie_name, std::string& cookie_hdr_value);
 private:
-  enum class State { NotTriggered, InjectRequestSent, WaitingForUpstream, Done };
+  enum class State { NotTriggered, SendingInjectRequest, InjectRequestSent, WaitingForUpstream, Done };
 
   InjectFilterConfigSharedPtr config_;
   StreamDecoderFilterCallbacks* decoder_callbacks_;
   StreamEncoderFilterCallbacks* encoder_callbacks_;
-  bool initiating_call_{};
   State state_{State::NotTriggered};
   std::unique_ptr<Grpc::AsyncClientImpl<inject::InjectRequest, inject::InjectResponse>> client_;
   Grpc::AsyncRequest* req_{};
