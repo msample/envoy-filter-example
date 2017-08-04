@@ -41,12 +41,14 @@ void InjectFilter::onSuccess(std::unique_ptr<inject::InjectResponse>&& resp) {
   for (const std::string& name: config_->upstream_remove_cookie_names()) {
     removeNamedCookie(name, *hdrs_);
   }
+
+  bool wasSending =   state_ == State::SendingInjectRequest;
   state_ = State::WaitingForUpstream;
   ENVOY_LOG(trace,"exiting onSuccess on icb: {}", PINT(this));
 
-  if (!initiating_call_) {
-    // if initiating_call we will trigger continued decoding by return
-    // value from decodeHeaders call send() has yet to return to
+  if (!wasSending) {
+    // continue decoding if it won't be done by control flow yet to
+    // return from our decodeHeaders call send()
     decoder_callbacks_->continueDecoding();
   }
 }
@@ -54,13 +56,13 @@ void InjectFilter::onSuccess(std::unique_ptr<inject::InjectResponse>&& resp) {
 // called for gRPC call to InjectHeader
 void InjectFilter::onFailure(Grpc::Status::GrpcStatus status) {
   ENVOY_LOG(warn,"onFailure({}) called on icb: {}", status, PINT(this));
-  if (state_ == State::InjectRequestSent) {
-    state_ = State::WaitingForUpstream;
-    if (req_) {
-      req_->cancel();
-    }
+  bool wasSending =   state_ == State::SendingInjectRequest;
+  state_ = State::WaitingForUpstream;
+  if (!wasSending) {
+    // continue decoding if it won't be done by control flow yet to
+    // return from our decodeHeaders call send()
+    decoder_callbacks_->continueDecoding();
   }
-  decoder_callbacks_->continueDecoding();
 }
 
 void InjectFilter::onDestroy() {
@@ -139,15 +141,17 @@ FilterHeadersStatus InjectFilter::decodeHeaders(HeaderMap& headers, bool) {
   }
 
   client_ = config_->inject_client();
-  state_ = State::InjectRequestSent;
 
-  // initiating_call_ looks weird but is state wrapper that prevents
-  // onSuccess() from continuing decode if we get inject response after
-  // passing control to event loop via send() call below and before it
-  // returns.
-  initiating_call_ = true;
+  // SendingInjectRequest state signals our onSuccess() impl to not
+  // continuing decode if we get an inject response after passing
+  // control to event loop via send() call below and onSuccess() is
+  // called before it returns.
+  state_ = State::SendingInjectRequest;
   req_ = client_->send(config_->method_descriptor(), ir, *this, std::chrono::milliseconds(4000));
-  initiating_call_ = false;
+
+  if (state_ == State::SendingInjectRequest) {
+    state_ = State::InjectRequestSent;
+  }
 
   if (!req_) {
     ENVOY_LOG(warn, "Could not send inject gRPC request. Null req returned by send(). {}", PINT(this));
