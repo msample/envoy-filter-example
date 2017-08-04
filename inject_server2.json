@@ -7,6 +7,7 @@
       "type": "read",
       "name": "http_connection_manager",
       "config": {
+        "use_remote_address": true,
         "codec_type": "http1",
         "access_log": [
         {
@@ -58,18 +59,6 @@
               "cluster_name": "injector0"
             }
           },
-          {
-            "type": "both",
-            "name": "inject",
-            "config": {
-              "trigger_headers": ["authorization"],
-              "antitrigger_headers": ["x-myco-jwt"],
-              "include_headers": [],
-              "upstream_inject_headers": ["x-myco-jwt", "x-myco-jwt-v2"],
-              "upstream_remove_headers": ["authorization"],
-              "cluster_name": "injector1"
-            }
-          },
           { "type": "decoder", "name": "router", "config": {} }
         ]
       }
@@ -96,14 +85,6 @@
       "type": "static",
       "lb_type": "round_robin",
       "hosts": [{"url": "tcp://{{ ip_loopback_address }}:{{ injector0_0 }}"}]
-    },
-    {
-      "name": "injector1",
-      "features": "http2",
-      "connect_timeout_ms": 5000,
-      "type": "static",
-      "lb_type": "round_robin",
-      "hosts": [{"url": "tcp://{{ ip_loopback_address }}:{{ injector1_0 }}"}]
     }]
   }
 }
