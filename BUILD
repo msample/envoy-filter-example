@@ -105,7 +105,10 @@ envoy_cc_test(
         "@envoy//source/common/json:config_schemas_lib",
         "@envoy//source/common/json:json_loader_lib",
         "@envoy//source/common/json:json_validator_lib",
-        "@envoy//test/integration:integration_lib"
+        "@envoy//source/common/buffer:zero_copy_input_stream_lib",
+        "@envoy//source/common/grpc:codec_lib",
+        "@envoy//source/common/grpc:common_lib",
+        "@envoy//test/integration:integration_lib",
     ],
 )
 

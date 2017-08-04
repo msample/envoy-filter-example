@@ -5,11 +5,11 @@
 
 #include "test/integration/integration.h"
 #include "test/integration/utility.h"
-
+#include "gtest/gtest.h"
 
 namespace Envoy {
 class InjectIntegrationTest : public BaseIntegrationTest,
-                             public testing::TestWithParam<Network::Address::IpVersion> {
+                              public testing::TestWithParam<Network::Address::IpVersion> {
 public:
   InjectIntegrationTest() : BaseIntegrationTest(GetParam()) {}
 
@@ -21,8 +21,8 @@ public:
     registerPort("traffic_0", fake_upstreams_.back()->localAddress()->ip()->port());
     fake_upstreams_.emplace_back(new FakeUpstream(0, FakeHttpConnection::Type::HTTP2, version_));
     registerPort("injector0_0", fake_upstreams_.back()->localAddress()->ip()->port());
-    fake_upstreams_.emplace_back(new FakeUpstream(0, FakeHttpConnection::Type::HTTP2, version_));
-    registerPort("injector1_0", fake_upstreams_.back()->localAddress()->ip()->port());
+    //fake_upstreams_.emplace_back(new FakeUpstream(0, FakeHttpConnection::Type::HTTP2, version_));
+    //registerPort("injector1_0", fake_upstreams_.back()->localAddress()->ip()->port());
     createTestServer("inject_server2.json", {"http"});
 
     upstream_response_.reset(new IntegrationStreamDecoder(*dispatcher_));
@@ -39,7 +39,7 @@ public:
     codec_client_ = makeHttpConnection(std::move(conn), Http::CodecClient::Type::HTTP1);
     Http::TestHeaderMapImpl headers{{":method", "GET"}, {":path", "/some/path?qp1=foo&qp2=bar"},
                                     {":scheme", "http"}, {":authority", "host"},
-                                    {"cookie", "sessId=123"}};
+                                    {"cookie", "sessId=123"}, {"x-forwarded-for", "10.0.0.1"}};
     codec_client_->makeRequestWithBody(headers, request_size_, *upstream_response_);
   }
 
@@ -135,7 +135,7 @@ public:
 };
 
 INSTANTIATE_TEST_CASE_P(IpVersions, InjectIntegrationTest,
-                        testing::ValuesIn(TestEnvironment::getIpVersionsForTest()));
+                        testing::ValuesIn(TestEnvironment::getIpVersionsForTest())); // {Network::Address::IpVersion::v4}
 
 
 TEST_P(InjectIntegrationTest, Ok) {

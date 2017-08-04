@@ -17,7 +17,7 @@ void InjectFilter::onCreateInitialMetadata(Http::HeaderMap& ) {
 
 // called for gRPC call to InjectHeader
 void InjectFilter::onSuccess(std::unique_ptr<inject::InjectResponse>&& resp) {
-
+  ENVOY_LOG(trace,"entering onSuccess cb on filter: {}", PINT(this));
   std::map<std::string,std::string> inject_hdrs_;
   for (int i = 0; i < resp->headers_size(); ++i) {
     const inject::Header& h = resp->headers(i);
@@ -41,29 +41,48 @@ void InjectFilter::onSuccess(std::unique_ptr<inject::InjectResponse>&& resp) {
   for (const std::string& name: config_->upstream_remove_cookie_names()) {
     removeNamedCookie(name, *hdrs_);
   }
-  decoder_callbacks_->continueDecoding();
+  state_ = State::WaitingForUpstream;
   ENVOY_LOG(trace,"exiting onSuccess on icb: {}", PINT(this));
+  decoder_callbacks_->continueDecoding();
 }
 
 // called for gRPC call to InjectHeader
 void InjectFilter::onFailure(Grpc::Status::GrpcStatus status) {
   ENVOY_LOG(warn,"onFailure({}) called on icb: {}", status, PINT(this));
+  if (state_ == State::InjectRequestSent) {
+    state_ = State::WaitingForUpstream;
+    if (req_) {
+      req_->cancel();
+    }
+  }
   decoder_callbacks_->continueDecoding();
+}
+
+void InjectFilter::onDestroy() {
+  if (state_ == State::InjectRequestSent) {
+    state_ = State::Done;
+    if (req_) {
+      req_->cancel();
+    }
+  }
+  ENVOY_LOG(trace,"decoder filter onDestroy called on: {}", PINT(this));
 }
 
 // decodeHeaders - see if any configured headers are present, and if so send them to
 // the configured header injection service
 FilterHeadersStatus InjectFilter::decodeHeaders(HeaderMap& headers, bool) {
-
+  ENVOY_LOG(trace,"entering InjectFilter::decodeHeaders filter inst: {}", PINT(this));
   // don't inject for internal calls
   if (headers.EnvoyInternalRequest() && (headers.EnvoyInternalRequest()->value() == "true")) {
-      return FilterHeadersStatus::Continue;
+    ENVOY_LOG(trace,"leaving InjectFilter::decodeHeaders, internal req, not triggered, filter inst: {}", PINT(this));
+    return FilterHeadersStatus::Continue;
   }
 
   // don't attempt to inject anything if any anti-trigger header is in the request
   for (const Http::LowerCaseString& element : config_->antitrigger_headers()) {
     const Http::HeaderEntry* h = headers.get(element);
     if (h) {
+      ENVOY_LOG(trace,"leaving InjectFilter::decodeHeaders, antitrigger header, inst: {}", PINT(this));
       return FilterHeadersStatus::Continue;
     }
   }
@@ -89,12 +108,12 @@ FilterHeadersStatus InjectFilter::decodeHeaders(HeaderMap& headers, bool) {
     }
     triggered = true;
     inject::Header* ih = ir.mutable_inputheaders()->Add();
-    //    ih->set_key("cookie." + name.c_str());
     ih->mutable_key()->append("cookie.").append(name);
     ih->set_value(cookie_value.c_str());
   }
 
   if (!triggered) {
+    ENVOY_LOG(trace,"leaving InjectFilter::decodeHeaders, no triggered filter inst: {}", PINT(this));
     return FilterHeadersStatus::Continue;
   }
   ENVOY_LOG(info, "Inject trigger matched: {}", PINT(this));
@@ -115,10 +134,17 @@ FilterHeadersStatus InjectFilter::decodeHeaders(HeaderMap& headers, bool) {
   }
 
   client_ = config_->inject_client();
-  req_ = client_->send(config_->method_descriptor(), ir, *this, std::chrono::milliseconds(60));
+  state_ = State::InjectRequestSent;
+  req_ = client_->send(config_->method_descriptor(), ir, *this, std::chrono::milliseconds(4000));
 
   if (!req_) {
     ENVOY_LOG(warn, "Could not send inject gRPC request. Null req returned by send(). {}", PINT(this));
+    state_ = State::WaitingForUpstream;
+    return FilterHeadersStatus::Continue;
+  }
+
+  if (state_ == State::WaitingForUpstream) {
+    // send call about yielded for long enough to get answer
     return FilterHeadersStatus::Continue;
   }
 
@@ -129,21 +155,18 @@ FilterHeadersStatus InjectFilter::decodeHeaders(HeaderMap& headers, bool) {
 }
 
 FilterDataStatus InjectFilter::decodeData(Buffer::Instance&, bool) {
-  return FilterDataStatus::Continue;
+  return state_ == State::InjectRequestSent ? FilterDataStatus::StopIterationAndBuffer
+                                            : FilterDataStatus::Continue;
 }
 
 FilterTrailersStatus InjectFilter::decodeTrailers(HeaderMap&) {
-  return FilterTrailersStatus::Continue;
+  return state_ == State::InjectRequestSent ? FilterTrailersStatus::StopIteration
+                                            : FilterTrailersStatus::Continue;
 }
 
 void InjectFilter::setDecoderFilterCallbacks(StreamDecoderFilterCallbacks& callbacks) {
   decoder_callbacks_ = &callbacks;
 }
-
-void InjectFilter::onDestroy() {
-  ENVOY_LOG(trace,"decoder filter onDestroy called on: {}", PINT(this));
-}
-
 
 FilterHeadersStatus InjectFilter::encodeHeaders(HeaderMap&, bool) {
   return FilterHeadersStatus::Continue;
