@@ -17,7 +17,7 @@ void InjectFilter::onCreateInitialMetadata(Http::HeaderMap& ) {
 
 // called for gRPC call to InjectHeader
 void InjectFilter::onSuccess(std::unique_ptr<inject::InjectResponse>&& resp) {
-  ENVOY_LOG(trace,"entering onSuccess cb on filter: {}", PINT(this));
+  ENVOY_LOG(trace,"InjectFilter::onSuccess (wasSending={}), cb on filter: {}",state_ == State::SendingInjectRequest, PINT(this));
   std::map<std::string,std::string> inject_hdrs_;
   for (int i = 0; i < resp->headers_size(); ++i) {
     const inject::Header& h = resp->headers(i);
@@ -55,8 +55,8 @@ void InjectFilter::onSuccess(std::unique_ptr<inject::InjectResponse>&& resp) {
 
 // called for gRPC call to InjectHeader
 void InjectFilter::onFailure(Grpc::Status::GrpcStatus status) {
-  ENVOY_LOG(warn,"onFailure({}) called on icb: {}", status, PINT(this));
   bool wasSending =   state_ == State::SendingInjectRequest;
+  ENVOY_LOG(warn,"onFailure({}), wasSending={} called on icb: {}", status, wasSending, PINT(this));
   state_ = State::WaitingForUpstream;
   if (!wasSending) {
     // continue decoding if it won't be done by control flow yet to
@@ -77,8 +77,8 @@ void InjectFilter::onDestroy() {
 
 // decodeHeaders - see if any configured headers are present, and if so send them to
 // the configured header injection service
-FilterHeadersStatus InjectFilter::decodeHeaders(HeaderMap& headers, bool) {
-  ENVOY_LOG(trace,"entering InjectFilter::decodeHeaders filter inst: {}", PINT(this));
+FilterHeadersStatus InjectFilter::decodeHeaders(HeaderMap& headers, bool end_stream) {
+  ENVOY_LOG(trace,"InjectFilter::decodeHeaders(end_stream={}) called on filter: {}", end_stream, PINT(this));
   // don't inject for internal calls
   if (headers.EnvoyInternalRequest() && (headers.EnvoyInternalRequest()->value() == "true")) {
     ENVOY_LOG(trace,"leaving InjectFilter::decodeHeaders, internal req, not triggered, filter inst: {}", PINT(this));
@@ -170,12 +170,14 @@ FilterHeadersStatus InjectFilter::decodeHeaders(HeaderMap& headers, bool) {
   return FilterHeadersStatus::StopIteration;
 }
 
-FilterDataStatus InjectFilter::decodeData(Buffer::Instance&, bool) {
+FilterDataStatus InjectFilter::decodeData(Buffer::Instance&, bool end_stream) {
+  ENVOY_LOG(trace,"InjectFilter::decodeData(end_stream={}) called on filter: {}", end_stream, PINT(this));
   return state_ == State::InjectRequestSent ? FilterDataStatus::StopIterationAndBuffer
                                             : FilterDataStatus::Continue;
 }
 
 FilterTrailersStatus InjectFilter::decodeTrailers(HeaderMap&) {
+  ENVOY_LOG(trace,"InjectFilter::decodeTrailers() called on filter: {}", PINT(this));
   return state_ == State::InjectRequestSent ? FilterTrailersStatus::StopIteration
                                             : FilterTrailersStatus::Continue;
 }
@@ -206,7 +208,7 @@ static const Http::LowerCaseString cookie_hdr_name{"cookie"};
 
 // Removes the cookie header from the headers and replaces it with one
 // whose value does not include the named cookie(s).
-void InjectFilter::removeNamedCookie(const std::string& key, Http::HeaderMap& headers) {
+void InjectFilter::removeNamedCookie(const std::string& cookie_name, Http::HeaderMap& headers) {
   const Http::HeaderEntry* h = headers.get(cookie_hdr_name);
   if (!h) {
     return;
@@ -214,11 +216,11 @@ void InjectFilter::removeNamedCookie(const std::string& key, Http::HeaderMap& he
   std::string cookie_hdr_value(h->value().c_str());
 
   // optimization - no mutation if doesn't exist
-  if (cookie_hdr_value.find(key + "=") == std::string::npos) {
+  if (cookie_hdr_value.find(cookie_name + "=") == std::string::npos) {
     return;
   }
   // modify cookie hdr value
-  removeNamedCookie(key, cookie_hdr_value);
+  removeNamedCookie(cookie_name, cookie_hdr_value);
 
   headers.remove(cookie_hdr_name);  // addStaticKey appends unless remove first
   if (!cookie_hdr_value.empty()) {
