@@ -56,7 +56,8 @@
               "include_headers": [":path"],
               "upstream_inject_headers": ["x-myco-jwt"],
               "upstream_remove_headers": ["cookie.sessId"],
-              "cluster_name": "injector0"
+              "cluster_name": "injector0",
+              "timeout_ms": 300
             }
           },
           { "type": "decoder", "name": "router", "config": {} }

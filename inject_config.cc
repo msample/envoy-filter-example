@@ -51,6 +51,11 @@ const std::string INJECT_SCHEMA(R"EOF(
       "cluster_name": {
         "type" : "string",
         "description": "name of the upstream cluster to handle the gRPC call that computes the injected header(s)"
+      },
+      "timeout_ms": {
+        "type" : "integer",
+        "minimum": 1,
+        "description": "milliseconds to wait for gRPC response before taking configurable error handling action. Defaults to 120."
       }
     },
     "required": ["trigger_headers","upstream_inject_headers","cluster_name"],
@@ -139,6 +144,7 @@ Http::InjectFilterConfigSharedPtr InjectFilterConfig::createConfig(const Json::O
   }
 
   const std::string& cluster_name = json_config.getString("cluster_name");
+  const int64_t timeout_ms = json_config.getInteger("timeout_ms", 120);
 
   // verify that target cluster exists
   if (!fac_ctx.clusterManager().get(cluster_name)) {
@@ -147,7 +153,7 @@ Http::InjectFilterConfigSharedPtr InjectFilterConfig::createConfig(const Json::O
   // nice to have: ensure no dups in trig vs include hdrs
   Http::InjectFilterConfigSharedPtr config(new Http::InjectFilterConfig(thdrs_lc, trigger_cookie_names, antithdrs_lc, inc_hdrs_lc,
                                                                         upstream_inj_hdrs_lc, upstream_remove_hdrs_lc, upstream_remove_cookie_names,
-                                                                        fac_ctx.clusterManager(), cluster_name));
+                                                                        fac_ctx.clusterManager(), cluster_name, timeout_ms));
   return config;
 }
 

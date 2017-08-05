@@ -64,6 +64,54 @@ TEST_F(InjectFilterTest, BadConfigUnknownCluster) {
   EXPECT_THROW(Server::Configuration::InjectFilterConfig::createConfig(*config, "", fac_ctx_), EnvoyException);
 }
 
+TEST_F(InjectFilterTest, GoodConfigWithTimeout) {
+  const std::string filter_config = R"EOF(
+  {
+    "trigger_headers": ["cookie.sessId"],
+    "include_headers": [":path"],
+    "upstream_inject_headers": ["x-myco-jwt"],
+    "upstream_remove_headers": ["cookie.sessId"],
+    "cluster_name": "sessionCheck",
+    "timeout_ms": 2222
+  }
+  )EOF";
+
+  Json::ObjectSharedPtr config = Json::Factory::loadFromString(filter_config);
+  int64_t t = Server::Configuration::InjectFilterConfig::createConfig(*config, "", fac_ctx_)->timeout_ms();
+  EXPECT_EQ(2222, t);
+}
+
+TEST_F(InjectFilterTest, GoodConfigWithDefaultTimeout) {
+  const std::string filter_config = R"EOF(
+  {
+    "trigger_headers": ["cookie.sessId"],
+    "include_headers": [":path"],
+    "upstream_inject_headers": ["x-myco-jwt"],
+    "upstream_remove_headers": ["cookie.sessId"],
+    "cluster_name": "sessionCheck"
+  }
+  )EOF";
+
+  Json::ObjectSharedPtr config = Json::Factory::loadFromString(filter_config);
+  int64_t t = Server::Configuration::InjectFilterConfig::createConfig(*config, "", fac_ctx_)->timeout_ms();
+  EXPECT_EQ(120, t);
+}
+
+TEST_F(InjectFilterTest, BadConfigWithStringTimeout) {
+  const std::string filter_config = R"EOF(
+  {
+    "trigger_headers": ["cookie.sessId"],
+    "include_headers": [":path"],
+    "upstream_inject_headers": ["x-myco-jwt"],
+    "upstream_remove_headers": ["cookie.sessId"],
+    "timeout_ms": "2222"
+  }
+  )EOF";
+
+  Json::ObjectSharedPtr config = Json::Factory::loadFromString(filter_config);
+  EXPECT_THROW(Server::Configuration::InjectFilterConfig::createConfig(*config, "", fac_ctx_), Json::Exception);
+}
+
 TEST_F(InjectFilterTest, CookieParserMiddle) {
   std::string c("geo=x; sessionId=939133-x9393; dnt=a314");
   InjectFilter::removeNamedCookie("sessionId", c);

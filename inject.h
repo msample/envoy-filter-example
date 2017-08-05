@@ -37,11 +37,12 @@ public:
                      std::vector<Http::LowerCaseString>& upstream_remove_headers,
                      std::vector<std::string>& upstream_remove_cookie_names,
                      Upstream::ClusterManager& cluster_mgr,
-                     std::string cluster_name):
+                     const std::string cluster_name,
+                     int64_t timeout_ms):
   trigger_headers_(trigger_headers), trigger_cookie_names_(trigger_cookie_names), antitrigger_headers_(antitrigger_headers),
     include_headers_(include_headers), upstream_inject_headers_(upstream_inject_headers), upstream_remove_headers_(upstream_remove_headers),
     upstream_remove_cookie_names_(upstream_remove_cookie_names),
-    cluster_name_(cluster_name), cluster_mgr_(cluster_mgr),
+    cluster_name_(cluster_name), timeout_ms_(timeout_ms), cluster_mgr_(cluster_mgr),
     method_descriptor_(*Protobuf::DescriptorPool::generated_pool()->FindMethodByName("inject.InjectService.InjectHeaders")) {
     ASSERT(Protobuf::DescriptorPool::generated_pool()->FindMethodByName("inject.InjectService.InjectHeaders"))
   }
@@ -53,6 +54,7 @@ public:
   const std::vector<Http::LowerCaseString>& upstream_inject_headers() { return upstream_inject_headers_; }
   const std::vector<Http::LowerCaseString>& upstream_remove_headers() { return upstream_remove_headers_; }
   const std::vector<std::string>& upstream_remove_cookie_names() { return upstream_remove_cookie_names_; }
+  int64_t timeout_ms() { return timeout_ms_; }
 
   std::unique_ptr<Grpc::AsyncClientImpl<inject::InjectRequest, inject::InjectResponse>> inject_client() {
     return std::unique_ptr<Grpc::AsyncClientImpl<inject::InjectRequest, inject::InjectResponse>>(new Grpc::AsyncClientImpl<inject::InjectRequest,
@@ -68,7 +70,8 @@ public:
   std::vector<Http::LowerCaseString> upstream_inject_headers_;
   std::vector<Http::LowerCaseString> upstream_remove_headers_;
   std::vector<std::string> upstream_remove_cookie_names_;
-  std::string cluster_name_;
+  const std::string cluster_name_;
+  const int64_t timeout_ms_;
   Upstream::ClusterManager& cluster_mgr_;
   const google::protobuf::MethodDescriptor& method_descriptor_;
 };
