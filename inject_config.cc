@@ -1,10 +1,8 @@
-#include <string>
+#include "inject_config.h"
 
 #include "envoy/registry/registry.h"
-#include "envoy/server/filter_config.h"
 #include "envoy/common/exception.h"
 #include "common/json/config_schemas.h"
-#include "common/json/json_loader.h"
 #include "common/json/json_validator.h"
 #include "inject.h"
 
@@ -61,20 +59,27 @@ const std::string INJECT_SCHEMA(R"EOF(
 )EOF"); // "
 
 /**
- * Config registration for the header injection filter
+ * Register Inject filter so http filter entries with name "inject"
+ * and type "decoder" in the config will create this filter
  */
-class InjectFilterConfig : public NamedHttpFilterConfigFactory {
-public:
-  HttpFilterFactoryCb createFilterFactory(const Json::Object& json_config,
-                                          const std::string& stat_prefix,
-                                          FactoryContext& context) override;
-  std::string name() override { return "inject"; }
-  HttpFilterType type() override { return HttpFilterType::Both; }
-};
+static Registry::RegisterFactory<InjectFilterConfig, NamedHttpFilterConfigFactory> register_;
+
 
 HttpFilterFactoryCb InjectFilterConfig::createFilterFactory(const Json::Object& json_config,
-                                                            const std::string&,
+                                                            const std::string& statsd_prefix,
                                                             FactoryContext& fac_ctx) {
+
+  Http::InjectFilterConfigSharedPtr config = createConfig(json_config, statsd_prefix, fac_ctx);
+  return [config](Http::FilterChainFactoryCallbacks& callbacks) -> void {
+    callbacks.addStreamFilter(
+        Http::StreamFilterSharedPtr{new Http::InjectFilter(config)});
+  };
+
+}
+
+Http::InjectFilterConfigSharedPtr InjectFilterConfig::createConfig(const Json::Object& json_config,
+                                                                   const std::string&,
+                                                                   FactoryContext& fac_ctx) {
   json_config.validateSchema(INJECT_SCHEMA);
 
   std::vector<std::string> thdrs = json_config.getStringArray("trigger_headers");
@@ -139,24 +144,13 @@ HttpFilterFactoryCb InjectFilterConfig::createFilterFactory(const Json::Object& 
   if (!fac_ctx.clusterManager().get(cluster_name)) {
     throw EnvoyException("Inject filter requires 'cluster_name' cluster for gRPC inject request to be configured statically in the config file. No such cluster: " + cluster_name);
   }
-
   // nice to have: ensure no dups in trig vs include hdrs
-
   Http::InjectFilterConfigSharedPtr config(new Http::InjectFilterConfig(thdrs_lc, trigger_cookie_names, antithdrs_lc, inc_hdrs_lc,
                                                                         upstream_inj_hdrs_lc, upstream_remove_hdrs_lc, upstream_remove_cookie_names,
                                                                         fac_ctx.clusterManager(), cluster_name));
-  return [config](Http::FilterChainFactoryCallbacks& callbacks) -> void {
-    callbacks.addStreamFilter(
-        Http::StreamFilterSharedPtr{new Http::InjectFilter(config)});
-  };
-
+  return config;
 }
 
-/**
- * Register Inject filter so http filter entries with name "inject"
- * and type "decoder" in the config will create this filter
- */
-static Registry::RegisterFactory<InjectFilterConfig, NamedHttpFilterConfigFactory> register_;
 
 
 

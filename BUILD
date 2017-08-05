@@ -86,6 +86,7 @@ envoy_cc_library(
 envoy_cc_library(
     name = "inject_config",
     srcs = ["inject_config.cc"],
+    hdrs = ["inject_config.h"],
     repository = "@envoy",
     deps = [
         ":inject_lib",
@@ -109,6 +110,21 @@ envoy_cc_test(
         "@envoy//source/common/grpc:codec_lib",
         "@envoy//source/common/grpc:common_lib",
         "@envoy//test/integration:integration_lib",
+    ],
+)
+
+
+envoy_cc_test(
+    name = "inject_test",
+    srcs = ["inject_test.cc"],
+    repository = "@envoy",
+    deps = [
+        ":inject_config",
+        "@envoy//source/common/buffer:buffer_lib",
+        "@envoy//source/common/common:empty_string",
+        "@envoy//source/common/http:headers_lib",
+        "@envoy//test/mocks/server:server_mocks",
+        "@envoy//test/test_common:utility_lib",
     ],
 )
 
