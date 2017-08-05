@@ -147,7 +147,7 @@ FilterHeadersStatus InjectFilter::decodeHeaders(HeaderMap& headers, bool end_str
   // control to event loop via send() call below and onSuccess() is
   // called before it returns.
   state_ = State::SendingInjectRequest;
-  req_ = client_->send(config_->method_descriptor(), ir, *this, std::chrono::milliseconds(4000));
+  req_ = client_->send(config_->method_descriptor(), ir, *this, std::chrono::milliseconds(config_->timeout_ms()));
 
   if (state_ == State::SendingInjectRequest) {
     state_ = State::InjectRequestSent;
