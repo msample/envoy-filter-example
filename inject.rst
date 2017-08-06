@@ -27,11 +27,12 @@ server while another talks to your session service.
     "config": {
       "antitrigger_headers": [],
       "trigger_headers": [],
+      "always_triggered": (bool)
       "include_headers": [],
       "upstream_inject_headers": [],
       "upstream_remove_headers": [],
       "cluster_name": "...",
-      "timeout_ms": "..."
+      "timeout_ms": (int)
     }
   }
 
@@ -66,7 +67,7 @@ always_triggered:
   *always_triggered* is explictly set, *trigger_headers* becomes
   optional.
 
-include
+include_headers
   *(optional, array)* if triggered, these header names and values will
   be included as parameters to the gRPC injection request along with
   any present trigger headers. They provide information to the
