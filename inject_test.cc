@@ -104,6 +104,7 @@ TEST_F(InjectFilterTest, BadConfigWithStringTimeout) {
     "include_headers": [":path"],
     "upstream_inject_headers": ["x-myco-jwt"],
     "upstream_remove_headers": ["cookie.sessId"],
+    "cluster_name": "sessionCheck",
     "timeout_ms": "2222"
   }
   )EOF";
@@ -111,6 +112,152 @@ TEST_F(InjectFilterTest, BadConfigWithStringTimeout) {
   Json::ObjectSharedPtr config = Json::Factory::loadFromString(filter_config);
   EXPECT_THROW(Server::Configuration::InjectFilterConfig::createConfig(*config, "", fac_ctx_), Json::Exception);
 }
+
+TEST_F(InjectFilterTest, GoodConfigAlwaysTriggeredExplcitFalse) {
+  const std::string filter_config = R"EOF(
+  {
+    "trigger_headers": ["cookie.sessId"],
+    "always_triggered": false,
+    "include_headers": [":path"],
+    "upstream_inject_headers": ["x-myco-jwt"],
+    "upstream_remove_headers": ["cookie.sessId"],
+    "cluster_name": "sessionCheck"
+  }
+  )EOF";
+
+  Json::ObjectSharedPtr config = Json::Factory::loadFromString(filter_config);
+  bool t = Server::Configuration::InjectFilterConfig::createConfig(*config, "", fac_ctx_)->always_triggered();
+  EXPECT_EQ(false, t);
+}
+
+TEST_F(InjectFilterTest, GoodConfigAlwaysTriggeredExplcitTrue) {
+  const std::string filter_config = R"EOF(
+  {
+    "trigger_headers": ["cookie.sessId"],
+    "always_triggered": true,
+    "include_headers": [":path"],
+    "upstream_inject_headers": ["x-myco-jwt"],
+    "upstream_remove_headers": ["cookie.sessId"],
+    "cluster_name": "sessionCheck"
+  }
+  )EOF";
+
+  Json::ObjectSharedPtr config = Json::Factory::loadFromString(filter_config);
+  bool t = Server::Configuration::InjectFilterConfig::createConfig(*config, "", fac_ctx_)->always_triggered();
+  EXPECT_EQ(true, t);
+}
+
+TEST_F(InjectFilterTest, GoodConfigAlwaysTriggeredImplicitFalse) {
+  const std::string filter_config = R"EOF(
+  {
+    "trigger_headers": ["cookie.sessId"],
+    "include_headers": [":path"],
+    "upstream_inject_headers": ["x-myco-jwt"],
+    "upstream_remove_headers": ["cookie.sessId"],
+    "cluster_name": "sessionCheck"
+  }
+  )EOF";
+
+  Json::ObjectSharedPtr config = Json::Factory::loadFromString(filter_config);
+  bool t = Server::Configuration::InjectFilterConfig::createConfig(*config, "", fac_ctx_)->always_triggered();
+  EXPECT_EQ(false, t);
+}
+
+TEST_F(InjectFilterTest, GoodConfigAlwaysTriggeredDefaultWorks) {
+  const std::string filter_config = R"EOF(
+  {
+    "trigger_headers": ["x-da-trigger"],
+    "include_headers": ["cookie"],
+    "upstream_inject_headers": ["x-myco-jwt"],
+    "cluster_name": "sessionCheck"
+  }
+  )EOF";
+  Json::ObjectSharedPtr config = Json::Factory::loadFromString(filter_config);
+  Http::InjectFilterConfigSharedPtr fconfig = Server::Configuration::InjectFilterConfig::createConfig(*config, "", fac_ctx_);
+  Http::InjectFilter f(fconfig);
+  // trigger header absent
+  Http::TestHeaderMapImpl headers{{":method", "GET"}, {":path", "/some/path?qp1=foo&qp2=bar"},
+                                  {":scheme", "http"}, {":authority", "host"},
+                                  {"cookie", "sessId=123"}};
+  Http::FilterHeadersStatus s = f.decodeHeaders(headers, false);
+  EXPECT_EQ(Http::FilterHeadersStatus::Continue, s);
+  EXPECT_EQ(Http::InjectFilter::State::NotTriggered, f.getState());
+}
+TEST_F(InjectFilterTest, GoodConfigAlwaysTriggeredFalseWorks) {
+  const std::string filter_config = R"EOF(
+  {
+    "include_headers": ["cookie"],
+    "upstream_inject_headers": ["x-myco-jwt"],
+    "cluster_name": "sessionCheck",
+    "always_triggered": false
+  }
+  )EOF";
+  Json::ObjectSharedPtr config = Json::Factory::loadFromString(filter_config);
+  Http::InjectFilterConfigSharedPtr fconfig = Server::Configuration::InjectFilterConfig::createConfig(*config, "", fac_ctx_);
+  Http::InjectFilter f(fconfig);
+  // trigger head absent
+  Http::TestHeaderMapImpl headers{{":method", "GET"}, {":path", "/some/path?qp1=foo&qp2=bar"},
+                                  {":scheme", "http"}, {":authority", "host"},
+                                  {"cookie", "sessId=123"}};
+  Http::FilterHeadersStatus s = f.decodeHeaders(headers, false);
+  EXPECT_EQ(Http::FilterHeadersStatus::Continue, s);
+  EXPECT_EQ(Http::InjectFilter::State::NotTriggered, f.getState());
+}
+
+TEST_F(InjectFilterTest, GoodConfigAlwaysTriggeredTrueWorks) {
+  const std::string filter_config = R"EOF(
+  {
+    "trigger_headers": ["x-da-trigger"],
+    "include_headers": ["cookie"],
+    "upstream_inject_headers": ["x-myco-jwt"],
+    "cluster_name": "sessionCheck",
+    "always_triggered": true
+  }
+  )EOF";
+  Json::ObjectSharedPtr config = Json::Factory::loadFromString(filter_config);
+  Http::InjectFilterConfigSharedPtr fconfig = Server::Configuration::InjectFilterConfig::createConfig(*config, "", fac_ctx_);
+  Http::InjectFilter f(fconfig);
+  // trigger head absent
+  Http::TestHeaderMapImpl headers{{":method", "GET"}, {":path", "/some/path?qp1=foo&qp2=bar"},
+                                  {":scheme", "http"}, {":authority", "host"},
+                                  {"cookie", "sessId=123"}};
+  Http::FilterHeadersStatus s = f.decodeHeaders(headers, false);
+  EXPECT_EQ(Http::FilterHeadersStatus::Continue, s); // we won't get stop iteration cuz grpc req fails instantly
+  EXPECT_EQ(Http::InjectFilter::State::WaitingForUpstream, f.getState());
+}
+
+TEST_F(InjectFilterTest, GoodConfigAlwaysTriggeredExplicitFalseWorks) {
+  const std::string filter_config = R"EOF(
+  {
+    "include_headers": ["cookie"],
+    "upstream_inject_headers": ["x-myco-jwt"],
+    "cluster_name": "sessionCheck",
+    "always_triggered": false
+  }
+  )EOF";  // note trigger_headers not req'd if explicit value for always_triggered
+  Json::ObjectSharedPtr config = Json::Factory::loadFromString(filter_config);
+  Http::InjectFilterConfigSharedPtr fconfig = Server::Configuration::InjectFilterConfig::createConfig(*config, "", fac_ctx_);
+  Http::InjectFilter f(fconfig);
+  Http::TestHeaderMapImpl headers{{":method", "GET"}, {":path", "/some/path?qp1=foo&qp2=bar"},
+                                  {":scheme", "http"}, {":authority", "host"},
+                                  {"cookie", "sessId=123"}};
+  Http::FilterHeadersStatus s = f.decodeHeaders(headers, false);
+  EXPECT_EQ(Http::FilterHeadersStatus::Continue, s);
+  EXPECT_EQ(Http::InjectFilter::State::NotTriggered, f.getState());
+}
+
+TEST_F(InjectFilterTest, BadConfigTriggers) {
+  const std::string filter_config = R"EOF(
+  {
+    "include_headers": ["cookie"],
+    "upstream_inject_headers": ["x-myco-jwt"],
+    "cluster_name": "sessionCheck"
+  }
+  )EOF";  // no trigger_headers & no always_triggered not allowed
+  Json::ObjectSharedPtr config = Json::Factory::loadFromString(filter_config);
+  EXPECT_THROW(Server::Configuration::InjectFilterConfig::createConfig(*config, "", fac_ctx_), EnvoyException);
+}
+
 
 TEST_F(InjectFilterTest, CookieParserMiddle) {
   std::string c("geo=x; sessionId=939133-x9393; dnt=a314");

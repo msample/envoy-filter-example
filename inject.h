@@ -32,6 +32,7 @@ public:
   InjectFilterConfig(std::vector<Http::LowerCaseString>& trigger_headers,
                      std::vector<std::string>& trigger_cookie_names,
                      std::vector<Http::LowerCaseString>& antitrigger_headers,
+                     bool always_triggered,
                      std::vector<Http::LowerCaseString>& include_headers,
                      std::vector<Http::LowerCaseString>& upstream_inject_headers,
                      std::vector<Http::LowerCaseString>& upstream_remove_headers,
@@ -40,8 +41,8 @@ public:
                      const std::string cluster_name,
                      int64_t timeout_ms):
   trigger_headers_(trigger_headers), trigger_cookie_names_(trigger_cookie_names), antitrigger_headers_(antitrigger_headers),
-    include_headers_(include_headers), upstream_inject_headers_(upstream_inject_headers), upstream_remove_headers_(upstream_remove_headers),
-    upstream_remove_cookie_names_(upstream_remove_cookie_names),
+    always_triggered_(always_triggered), include_headers_(include_headers), upstream_inject_headers_(upstream_inject_headers),
+    upstream_remove_headers_(upstream_remove_headers), upstream_remove_cookie_names_(upstream_remove_cookie_names),
     cluster_name_(cluster_name), timeout_ms_(timeout_ms), cluster_mgr_(cluster_mgr),
     method_descriptor_(*Protobuf::DescriptorPool::generated_pool()->FindMethodByName("inject.InjectService.InjectHeaders")) {
     ASSERT(Protobuf::DescriptorPool::generated_pool()->FindMethodByName("inject.InjectService.InjectHeaders"))
@@ -50,6 +51,7 @@ public:
   const std::vector<Http::LowerCaseString>& trigger_headers() { return trigger_headers_; }
   const std::vector<std::string>& trigger_cookie_names() { return trigger_cookie_names_; }
   const std::vector<Http::LowerCaseString>& antitrigger_headers() { return antitrigger_headers_; }
+  bool always_triggered() { return always_triggered_; }
   const std::vector<Http::LowerCaseString>& include_headers() { return include_headers_; }
   const std::vector<Http::LowerCaseString>& upstream_inject_headers() { return upstream_inject_headers_; }
   const std::vector<Http::LowerCaseString>& upstream_remove_headers() { return upstream_remove_headers_; }
@@ -66,6 +68,7 @@ public:
   std::vector<Http::LowerCaseString> trigger_headers_;
   std::vector<std::string> trigger_cookie_names_;
   std::vector<Http::LowerCaseString> antitrigger_headers_;
+  const bool always_triggered_;
   std::vector<Http::LowerCaseString> include_headers_;
   std::vector<Http::LowerCaseString> upstream_inject_headers_;
   std::vector<Http::LowerCaseString> upstream_remove_headers_;
@@ -102,10 +105,13 @@ public:
   void onSuccess(std::unique_ptr<inject::InjectResponse>&& response) override;
   void onFailure(Grpc::Status::GrpcStatus status) override;
 
+  enum class State { NotTriggered, SendingInjectRequest, InjectRequestSent, WaitingForUpstream, Done };
+  State getState() { return state_; }  // testing aid
+
   static void removeNamedCookie(const std::string& cookie_name, Http::HeaderMap& headers);
   static void removeNamedCookie(const std::string& cookie_name, std::string& cookie_hdr_value);
+
 private:
-  enum class State { NotTriggered, SendingInjectRequest, InjectRequestSent, WaitingForUpstream, Done };
 
   InjectFilterConfigSharedPtr config_;
   StreamDecoderFilterCallbacks* decoder_callbacks_;
