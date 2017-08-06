@@ -27,9 +27,10 @@ server while another talks to your session service.
     "config": {
       "antitrigger_headers": [],
       "trigger_headers": [],
-      "always_triggered": (bool)
+      "always_triggered": (boolean)
       "include_headers": [],
       "upstream_inject_headers": [],
+      "upstream_inject_any": (boolean),
       "upstream_remove_headers": [],
       "cluster_name": "...",
       "timeout_ms": (int)
@@ -84,17 +85,24 @@ include_all_headers
    the *include_headers* configuration option is ignored.
 
 upstream_inject_headers
-  *(required, array)* header name strings desired to be injected into
-  the upstream request.  These will be returned in the gRPC inject
-  response.  Only headers named in this list are allowed to be
-  injected.  Any others returned in the gRPC response will be ignored.
-  Strongly consider also adding these to the *internal_only_headers*
-  of the *route_config* so they are stripped first if they arrive from
-  outside (no forgeries).  Also consider signatures on these header
-  values to prevent forgeries from inside your network. For example,
-  use the RSA or ECC signatures on a JWT.  If the injected header
-  already exists in the request, the injected one replaces the
-  original one.
+  *(optional, array)* header name strings desired to be injected into
+  the upstream request.  These names will be provided to the gRPC
+  inject request and only these headers response may be injected.
+  Only headers named in this list are allowed to be injected unless
+  *upstream_inject_any* is true.  Any others returned in the gRPC
+  response will be ignored.  The gRPC responder may choose not provide
+  values for every one of these. Strongly consider also adding these
+  to the *internal_only_headers* of the *route_config* so they are
+  stripped first if they arrive from outside (prevent forgeries).
+  Also consider signatures on these header values to prevent forgeries
+  from inside your network. For example, use the RSA or ECC signatures
+  on a JWT.  If the injected header already exists in the request, the
+  injected one replaces the original one.
+
+upstream_inject_any
+  *(optional, boolean)* inject every header value returned in the gRPC
+   response if true. Otherwise, only those named in
+   *upstream_inject_headers* are allowed to be injected.
 
 upstream_remove_headers
   *(optional, array)* header name strings that should be removed from

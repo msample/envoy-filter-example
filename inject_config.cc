@@ -50,6 +50,10 @@ const std::string INJECT_SCHEMA(R"EOF(
         "items" : {"type" : "string"},
         "description": "names of headers desired & allowed be injected into the request. Included in inject RPC to indicate desired headers. Also prevents arbitrary header name injection."
       },
+      "upstream_inject_any" : {
+        "type" : "boolean",
+        "description": "if true, inject all upstream headers returned in gRPC response, not just those in upstream_inject_headers."
+      },
       "upstream_remove_headers" : {
         "type" : "array",
         "uniqueItems" : true,
@@ -157,6 +161,7 @@ Http::InjectFilterConfigSharedPtr InjectFilterConfig::createConfig(const Json::O
   const int64_t timeout_ms = json_config.getInteger("timeout_ms", 120);
   const bool always_triggered = json_config.getBoolean("always_triggered", false);
   const bool include_all_headers = json_config.getBoolean("include_all_headers", false);
+  const bool upstream_inject_any  = json_config.getBoolean("upstream_inject_any", false);
 
   if ((thdrs_lc.size() == 0) && (trigger_cookie_names.size() == 0) &&
       json_config.getBoolean("always_triggered", true) && !json_config.getBoolean("always_triggered", false)) {
@@ -169,9 +174,9 @@ Http::InjectFilterConfigSharedPtr InjectFilterConfig::createConfig(const Json::O
   }
   // nice to have: ensure no dups in trig vs include hdrs
   Http::InjectFilterConfigSharedPtr config(new Http::InjectFilterConfig(thdrs_lc, trigger_cookie_names, antithdrs_lc, always_triggered, inc_hdrs_lc,
-                                                                        include_all_headers, upstream_inj_hdrs_lc, upstream_remove_hdrs_lc,
-                                                                        upstream_remove_cookie_names, fac_ctx.clusterManager(),
-                                                                        cluster_name, timeout_ms));
+                                                                        include_all_headers, upstream_inj_hdrs_lc, upstream_inject_any,
+                                                                        upstream_remove_hdrs_lc, upstream_remove_cookie_names,
+                                                                        fac_ctx.clusterManager(), cluster_name, timeout_ms));
   return config;
 }
 

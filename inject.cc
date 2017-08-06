@@ -5,8 +5,9 @@
 #include <chrono>
 
 #include "common/grpc/common.h"
+#include "common/http/header_map_impl.h"
 
-#define PINT(a) reinterpret_cast<unsigned long>(a)
+#define PINT(a) reinterpret_cast<unsigned long long>(a)
 
 namespace Envoy {
 namespace Http {
@@ -18,17 +19,35 @@ void InjectFilter::onCreateInitialMetadata(Http::HeaderMap& ) {
 // called for gRPC call to InjectHeader
 void InjectFilter::onSuccess(std::unique_ptr<inject::InjectResponse>&& resp) {
   ENVOY_LOG(trace,"InjectFilter::onSuccess (wasSending={}), cb on filter: {}",state_ == State::SendingInjectRequest, PINT(this));
-  std::map<std::string,std::string> inject_hdrs_;
-  for (int i = 0; i < resp->headers_size(); ++i) {
-    const inject::Header& h = resp->headers(i);
-    inject_hdrs_.insert(std::pair<std::string,std::string>(h.key(), h.value()));
-  }
 
-  for (const Http::LowerCaseString& element : config_->upstream_inject_headers()) {
-    ENVOY_LOG(info, "Injecting {}",element.get());
-    std::map<std::string,std::string>::iterator it = inject_hdrs_.find(element.get());
-    if (it != inject_hdrs_.end()) {
-      hdrs_->addStaticKey(element, it->second);
+  Http::HeaderMapImpl* hmi = reinterpret_cast<Http::HeaderMapImpl*>(hdrs_);
+  if (config_->upstream_inject_any()) {
+    // inject every header returned in gRPC response #trust
+    for (int i = 0; i < resp->headers_size(); ++i) {
+      const inject::Header& h = resp->headers(i);
+      HeaderString key;
+      HeaderString value;
+      key.setCopy(h.key().c_str(), h.key().size());
+      key.setCopy(h.value().c_str(), h.value().size());
+      Http::LowerCaseString lckey(h.key().c_str());
+      hmi->remove(lckey);
+      hmi->addViaMove(std::move(key), std::move(value));
+    }
+  } else {
+    // just inject the ones allowed by filter config
+    std::map<std::string,std::string> inject_hdrs_;
+    for (int i = 0; i < resp->headers_size(); ++i) {
+      const inject::Header& h = resp->headers(i);
+      inject_hdrs_.insert(std::pair<std::string,std::string>(h.key(), h.value()));
+    }
+    for (const Http::LowerCaseString& element : config_->upstream_inject_headers()) {
+      ENVOY_LOG(info, "Injecting {}",element.get());
+      std::map<std::string,std::string>::iterator it = inject_hdrs_.find(element.get());
+      if (it != inject_hdrs_.end()) {
+        Http::LowerCaseString lckey(element);
+        hdrs_->remove(lckey);
+        hdrs_->addStaticKey(element, it->second);
+      }
     }
   }
 
@@ -99,7 +118,7 @@ FilterHeadersStatus InjectFilter::decodeHeaders(HeaderMap& headers, bool end_str
     }
   }
 
-  inject::InjectRequest ir;
+  inject::InjectRequest ir; // sizeof is 72 
   for (const Http::LowerCaseString& element : config_->trigger_headers()) {
     const Http::HeaderEntry* h = headers.get(element);
     if (h) {
