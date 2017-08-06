@@ -85,18 +85,21 @@ FilterHeadersStatus InjectFilter::decodeHeaders(HeaderMap& headers, bool end_str
     return FilterHeadersStatus::Continue;
   }
 
-  // don't attempt to inject anything if any anti-trigger header is in the request
-  for (const Http::LowerCaseString& element : config_->antitrigger_headers()) {
-    const Http::HeaderEntry* h = headers.get(element);
-    if (h) {
-      ENVOY_LOG(trace,"leaving InjectFilter::decodeHeaders, antitrigger header, inst: {}", PINT(this));
-      return FilterHeadersStatus::Continue;
+  bool triggered = config_->always_triggered();
+
+  // don't attempt to inject anything if any anti-trigger header is in
+  // the request and we're not in always_triggered mode.
+  if (!triggered ) {
+    for (const Http::LowerCaseString& element : config_->antitrigger_headers()) {
+      const Http::HeaderEntry* h = headers.get(element);
+      if (h) {
+        ENVOY_LOG(trace,"leaving InjectFilter::decodeHeaders, antitrigger header, inst: {}", PINT(this));
+        return FilterHeadersStatus::Continue;
+      }
     }
   }
 
-  //inject::InjectRequest& ir = *(new inject::InjectRequest());
   inject::InjectRequest ir;
-  bool triggered = false;
   for (const Http::LowerCaseString& element : config_->trigger_headers()) {
     const Http::HeaderEntry* h = headers.get(element);
     if (h) {

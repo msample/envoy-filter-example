@@ -1,17 +1,23 @@
 Header Injection
 ================
 
-Header injection is a flexible filter that can add headers to upstream-bound requests based on the original headers
-in the requests. The logic that computes the headers to inject is external to Envoy and accessed via a gRPC call.
-Header injection is conditional on trigger and antitrigger headers being present. This allows multiple injection
-filters to be stacked yet only one of them fires. For example, if the first injection filter is triggered and
-successfully injects some headers, subsequent injection filters can use those injected headers as anti-triggers
-so they don't fire.  This is important as the gRPC call must complete before Envoy can forward the request to
-the upstream cluster.
+Header injection is a flexible filter that can add headers to
+upstream-bound requests based on the original headers in the
+requests. The logic that computes the headers to inject is external to
+Envoy and accessed via a gRPC call per request.  Header injection is
+conditional on trigger and antitrigger headers being present. This
+allows multiple injection filters to be stacked yet only one of them
+fires. For example, if the first injection filter is triggered and
+successfully injects some headers, subsequent injection filters can
+use those injected headers as anti-triggers so they don't fire.  This
+is important as the gRPC call must complete before Envoy can forward
+the request to the upstream cluster.
 
-Stacking injection filters may make sense if you have multiple sources of authentication such as session cookies
-and OAUTH tokens.  Each injection filter can talk to a different gRPC injection service, for example one backed by
-your OAUTH authorization server while another talks to your session service.
+Stacking injection filters with conditional triggers may make sense if
+you have multiple sources of authentication such as session cookies
+and OAUTH tokens.  Each injection filter can talk to a different gRPC
+injection service, for example one backed by your OAUTH authorization
+server while another talks to your session service.
 
 .. code-block:: json
 
@@ -37,9 +43,9 @@ antitrigger_headers
   any headers.
 
 trigger_headers
-  *(required, array)* header name strings, where any of which present
-  in a request will cause injection to be attempted unless an
-  antitrigger is present.  These headers names also support
+  *(sometimes required, array)* header name strings, where any of
+  which present in a request will cause injection to be attempted
+  unless an antitrigger is present.  These headers names also support
   "cookie.(cookie-name)" syntax so you can trigger on the presence of
   a specific cookie. For example, "cookie.session" will trigger
   injection if a cookie named "session" (case sensitive) is present in
@@ -47,7 +53,18 @@ trigger_headers
   the gRPC injection request, for example, to allow a session id to be
   converted to a JWT containing the user id.  Named cookie 'headers'
   are passed with the "cookie.(name)" name and a value that is just
-  the named cookie value with any optional quotes removed.
+  the named cookie value with any optional quotes removed. If
+  always_triggered is not explicitly specified, this field is
+  required.
+
+always_triggered:
+  *(optional, boolean)* forces this filter to attempt injection for
+  every request if set true. Defaults to false if unspecified.  If
+  *always_triggered* is explicitly set to false, this filter will only
+  fire if the trigger headers are present. If explictly set false and
+  trigger_headers is empty or absent this filter will never fire.  If
+  *always_triggered* is explictly set, *trigger_headers* becomes
+  optional.
 
 include
   *(optional, array)* if triggered, these header names and values will
@@ -88,14 +105,12 @@ cluster_name
 timeout_ms
   *(optional, number)* maximum milliseconds to wait for the gRPC
   injection response before simply passing the request upstream
-  without injecting any headers.
+  without injecting any headers. Defaults to 120. Minimum value is 1
 
 
 Failures
 ========
 
 If header injection fails due to gRPC timeout etc. the request will be
-passed through as-is and no headers injected.  Not all internal endpoints may need authentication
-or whatever was being injected. However, consideration is being given to adding *failure_header_name*
-and *failure_header_value* configuraiton options as a header name and value to include in the upstream
-request if injection failure occurs.
+passed through as-is and no headers injected.  Not all internal
+endpoints may need authentication or whatever was being injected.
