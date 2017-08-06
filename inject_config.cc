@@ -39,6 +39,10 @@ const std::string INJECT_SCHEMA(R"EOF(
         "items" : {"type" : "string"},
         "description": "these request headers will be added to the inject RPC call along with the trigger headers to compute the injected headers."
       },
+      "include_all_headers" : {
+        "type" : "boolean",
+        "description": "Send all headers and pseudo headers with the gRPC inject request. if true, include_headers is ignored. Defaults to false."
+      },
       "upstream_inject_headers" : {
         "type" : "array",
         "uniqueItems" : true,
@@ -152,6 +156,7 @@ Http::InjectFilterConfigSharedPtr InjectFilterConfig::createConfig(const Json::O
   const std::string& cluster_name = json_config.getString("cluster_name");
   const int64_t timeout_ms = json_config.getInteger("timeout_ms", 120);
   const bool always_triggered = json_config.getBoolean("always_triggered", false);
+  const bool include_all_headers = json_config.getBoolean("include_all_headers", false);
 
   if ((thdrs_lc.size() == 0) && (trigger_cookie_names.size() == 0) &&
       json_config.getBoolean("always_triggered", true) && !json_config.getBoolean("always_triggered", false)) {
@@ -164,8 +169,9 @@ Http::InjectFilterConfigSharedPtr InjectFilterConfig::createConfig(const Json::O
   }
   // nice to have: ensure no dups in trig vs include hdrs
   Http::InjectFilterConfigSharedPtr config(new Http::InjectFilterConfig(thdrs_lc, trigger_cookie_names, antithdrs_lc, always_triggered, inc_hdrs_lc,
-                                                                        upstream_inj_hdrs_lc, upstream_remove_hdrs_lc, upstream_remove_cookie_names,
-                                                                        fac_ctx.clusterManager(), cluster_name, timeout_ms));
+                                                                        include_all_headers, upstream_inj_hdrs_lc, upstream_remove_hdrs_lc,
+                                                                        upstream_remove_cookie_names, fac_ctx.clusterManager(),
+                                                                        cluster_name, timeout_ms));
   return config;
 }
 

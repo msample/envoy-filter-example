@@ -22,7 +22,7 @@ server while another talks to your session service.
 .. code-block:: json
 
   {
-    "type": "decode",
+    "type": "both",
     "name": "inject",
     "config": {
       "antitrigger_headers": [],
@@ -40,7 +40,7 @@ antitrigger_headers
   *(optional, array)* header name strings where any of which present
   in a request will disable injection.  For example, if antitriggers
   has "x-skip-injecton" and the request has that header with any
-  non-empty value, this injection filter will not attempt to inject
+  non-empty value, the injection filter will not attempt to inject
   any headers.
 
 trigger_headers
@@ -73,7 +73,15 @@ include_headers
   any present trigger headers. They provide information to the
   injection sevice in order to compute the injected header values.
   The follwoing HTTP2 pseudo-headers are available here: :path,
-  :authority, :method.  The :path includes query parameters.
+  :authority, :method.  The :path pseudo-header includes query
+  parameters. This does not support the named cookie style
+  "cookie.foo"; instead just send the entire "cookie" header.
+
+include_all_headers
+   *(optional, boolean)* all request headers and available h2 pseudo
+   headers will be sent to the injection service in the gRPC request
+   payload if set true. Defaults to false if unspecified. If set true
+   the *include_headers* configuration option is ignored.
 
 upstream_inject_headers
   *(required, array)* header name strings desired to be injected into
