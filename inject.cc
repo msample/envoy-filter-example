@@ -104,22 +104,30 @@ FilterHeadersStatus InjectFilter::decodeHeaders(HeaderMap& headers, bool end_str
     const Http::HeaderEntry* h = headers.get(element);
     if (h) {
       triggered = true;
+      if (config_->include_all_headers()) {
+        break;
+      }
       inject::Header* ih = ir.mutable_inputheaders()->Add();
       ih->set_key(h->key().c_str());
       ih->set_value(h->value().c_str());
     }
   }
 
-  // check for cookies with names that trigger injection
-  for (const std::string& name: config_->trigger_cookie_names()) {
-    std::string cookie_value = Http::Utility::parseCookieValue(headers, name);
-    if (cookie_value.empty()) {
-      continue;
+  // check for cookies with names that trigger injection and add them.
+  if (!triggered || !config_->include_all_headers()) {
+    for (const std::string& name: config_->trigger_cookie_names()) {
+      std::string cookie_value = Http::Utility::parseCookieValue(headers, name);
+      if (cookie_value.empty()) {
+        continue;
+      }
+      triggered = true;
+      if (config_->include_all_headers()) {
+        break;
+      }
+      inject::Header* ih = ir.mutable_inputheaders()->Add();
+      ih->mutable_key()->append("cookie.").append(name);
+      ih->set_value(cookie_value.c_str());
     }
-    triggered = true;
-    inject::Header* ih = ir.mutable_inputheaders()->Add();
-    ih->mutable_key()->append("cookie.").append(name);
-    ih->set_value(cookie_value.c_str());
   }
 
   if (!triggered) {
@@ -128,13 +136,23 @@ FilterHeadersStatus InjectFilter::decodeHeaders(HeaderMap& headers, bool end_str
   }
   ENVOY_LOG(info, "Inject trigger matched: {}", PINT(this));
 
-  // add non-triggering headers of interest to inject request
-  for (const Http::LowerCaseString& element : config_->include_headers()) {
-    const Http::HeaderEntry* h = headers.get(element);
-    if (h) {
-      inject::Header* ih =  ir.mutable_inputheaders()->Add();
-      ih->set_key(h->key().c_str());
-      ih->set_value(h->value().c_str());
+  // add additional headers of interest to inject request
+  if (config_->include_all_headers()) {
+    headers.iterate([](const HeaderEntry& h, void* irp) -> void {
+        inject::InjectRequest* ir = static_cast<inject::InjectRequest*>(irp);
+        inject::Header* ih = ir->mutable_inputheaders()->Add();
+        ih->set_key(h.key().c_str());
+        ih->set_value(h.value().c_str());
+      }, static_cast<void*>(&ir));
+  } else {
+    // just include extras asked for
+    for (const Http::LowerCaseString& element : config_->include_headers()) {
+      const Http::HeaderEntry* h = headers.get(element);
+      if (h) {
+        inject::Header* ih =  ir.mutable_inputheaders()->Add();
+        ih->set_key(h->key().c_str());
+        ih->set_value(h->value().c_str());
+      }
     }
   }
 

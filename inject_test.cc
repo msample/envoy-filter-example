@@ -258,6 +258,53 @@ TEST_F(InjectFilterTest, BadConfigTriggers) {
   EXPECT_THROW(Server::Configuration::InjectFilterConfig::createConfig(*config, "", fac_ctx_), EnvoyException);
 }
 
+TEST_F(InjectFilterTest, GoodConfigIncludeAllHeaders) {
+  const std::string filter_config = R"EOF(
+  {
+    "trigger_headers": ["cookie.sessId"],
+    "include_all_headers": true,
+    "upstream_inject_headers": ["x-myco-jwt"],
+    "upstream_remove_headers": ["cookie.sessId"],
+    "cluster_name": "sessionCheck"
+  }
+  )EOF";
+
+  Json::ObjectSharedPtr config = Json::Factory::loadFromString(filter_config);
+  bool t = Server::Configuration::InjectFilterConfig::createConfig(*config, "", fac_ctx_)->include_all_headers();
+  EXPECT_EQ(true, t);
+}
+
+TEST_F(InjectFilterTest, GoodConfigExplicitDontIncludeAllHeaders) {
+  const std::string filter_config = R"EOF(
+  {
+    "trigger_headers": ["cookie.sessId"],
+    "include_all_headers": false,
+    "upstream_inject_headers": ["x-myco-jwt"],
+    "upstream_remove_headers": ["cookie.sessId"],
+    "cluster_name": "sessionCheck"
+  }
+  )EOF";
+
+  Json::ObjectSharedPtr config = Json::Factory::loadFromString(filter_config);
+  bool t = Server::Configuration::InjectFilterConfig::createConfig(*config, "", fac_ctx_)->include_all_headers();
+  EXPECT_EQ(false, t);
+}
+
+TEST_F(InjectFilterTest, GoodConfigImplicitDontIncludeAllHeaders) {
+  const std::string filter_config = R"EOF(
+  {
+    "trigger_headers": ["cookie.sessId"],
+    "upstream_inject_headers": ["x-myco-jwt"],
+    "upstream_remove_headers": ["cookie.sessId"],
+    "cluster_name": "sessionCheck"
+  }
+  )EOF";
+
+  Json::ObjectSharedPtr config = Json::Factory::loadFromString(filter_config);
+  bool t = Server::Configuration::InjectFilterConfig::createConfig(*config, "", fac_ctx_)->include_all_headers();
+  EXPECT_EQ(false, t);
+}
+
 
 TEST_F(InjectFilterTest, CookieParserMiddle) {
   std::string c("geo=x; sessionId=939133-x9393; dnt=a314");
