@@ -36,6 +36,7 @@ public:
                      std::vector<Http::LowerCaseString>& include_headers,
                      bool include_all_headers,
                      std::vector<Http::LowerCaseString>& upstream_inject_headers,
+                     bool upstream_inject_any,
                      std::vector<Http::LowerCaseString>& upstream_remove_headers,
                      std::vector<std::string>& upstream_remove_cookie_names,
                      Upstream::ClusterManager& cluster_mgr,
@@ -43,8 +44,8 @@ public:
                      int64_t timeout_ms):
   trigger_headers_(trigger_headers), trigger_cookie_names_(trigger_cookie_names), antitrigger_headers_(antitrigger_headers),
     always_triggered_(always_triggered), include_headers_(include_headers), include_all_headers_(include_all_headers),
-    upstream_inject_headers_(upstream_inject_headers), upstream_remove_headers_(upstream_remove_headers),
-    upstream_remove_cookie_names_(upstream_remove_cookie_names),
+    upstream_inject_headers_(upstream_inject_headers), upstream_inject_any_(upstream_inject_any),
+    upstream_remove_headers_(upstream_remove_headers), upstream_remove_cookie_names_(upstream_remove_cookie_names),
     cluster_name_(cluster_name), timeout_ms_(timeout_ms), cluster_mgr_(cluster_mgr),
     method_descriptor_(*Protobuf::DescriptorPool::generated_pool()->FindMethodByName("inject.InjectService.InjectHeaders")) {
     ASSERT(Protobuf::DescriptorPool::generated_pool()->FindMethodByName("inject.InjectService.InjectHeaders"))
@@ -57,6 +58,7 @@ public:
   const std::vector<Http::LowerCaseString>& include_headers() { return include_headers_; }
   bool include_all_headers() { return include_all_headers_; }
   const std::vector<Http::LowerCaseString>& upstream_inject_headers() { return upstream_inject_headers_; }
+  bool upstream_inject_any() { return upstream_inject_any_; }
   const std::vector<Http::LowerCaseString>& upstream_remove_headers() { return upstream_remove_headers_; }
   const std::vector<std::string>& upstream_remove_cookie_names() { return upstream_remove_cookie_names_; }
   int64_t timeout_ms() { return timeout_ms_; }
@@ -75,6 +77,7 @@ public:
   std::vector<Http::LowerCaseString> include_headers_;
   const bool include_all_headers_;
   std::vector<Http::LowerCaseString> upstream_inject_headers_;
+  const bool upstream_inject_any_;
   std::vector<Http::LowerCaseString> upstream_remove_headers_;
   std::vector<std::string> upstream_remove_cookie_names_;
   const std::string cluster_name_;
