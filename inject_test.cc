@@ -305,6 +305,105 @@ TEST_F(InjectFilterTest, GoodConfigImplicitDontIncludeAllHeaders) {
   EXPECT_EQ(false, t);
 }
 
+TEST_F(InjectFilterTest, GoodConfigUpstreamAllowAnyExplicitTrue) {
+  const std::string filter_config = R"EOF(
+  {
+    "trigger_headers": ["cookie.sessId"],
+    "upstream_inject_headers": ["x-myco-jwt"],
+    "upstream_inject_any": true,
+    "cluster_name": "sessionCheck"
+  }
+  )EOF";
+
+  Json::ObjectSharedPtr config = Json::Factory::loadFromString(filter_config);
+  bool t = Server::Configuration::InjectFilterConfig::createConfig(*config, "", fac_ctx_)->upstream_inject_any();
+  EXPECT_EQ(true, t);
+}
+
+TEST_F(InjectFilterTest, GoodConfigUpstreamAllowAnyExplicitFalse) {
+  const std::string filter_config = R"EOF(
+  {
+    "trigger_headers": ["cookie.sessId"],
+    "upstream_inject_headers": ["x-myco-jwt"],
+    "upstream_inject_any": false,
+    "cluster_name": "sessionCheck"
+  }
+  )EOF";
+
+  Json::ObjectSharedPtr config = Json::Factory::loadFromString(filter_config);
+  bool t = Server::Configuration::InjectFilterConfig::createConfig(*config, "", fac_ctx_)->upstream_inject_any();
+  EXPECT_EQ(false, t);
+}
+
+TEST_F(InjectFilterTest, GoodConfigUpstreamAllowAnyImplictFalse) {
+  const std::string filter_config = R"EOF(
+  {
+    "trigger_headers": ["cookie.sessId"],
+    "upstream_inject_headers": ["x-myco-jwt"],
+    "cluster_name": "sessionCheck"
+  }
+  )EOF";
+
+  Json::ObjectSharedPtr config = Json::Factory::loadFromString(filter_config);
+  bool t = Server::Configuration::InjectFilterConfig::createConfig(*config, "", fac_ctx_)->upstream_inject_any();
+  EXPECT_EQ(false, t);
+}
+
+TEST_F(InjectFilterTest, GoodConfigDownstreamAllowAnyExplicitTrue) {
+  const std::string filter_config = R"EOF(
+  {
+    "trigger_headers": ["cookie.sessId"],
+    "downstream_inject_any": true,
+    "cluster_name": "sessionCheck"
+  }
+  )EOF";
+
+  Json::ObjectSharedPtr config = Json::Factory::loadFromString(filter_config);
+  Http::InjectFilterConfigSharedPtr fconfig = Server::Configuration::InjectFilterConfig::createConfig(*config, "", fac_ctx_);
+  bool t = fconfig->downstream_inject_any();
+  EXPECT_EQ(true, t);
+  std::vector<Http::LowerCaseString> downstreamInjectHeaders = fconfig->downstream_inject_headers();
+  EXPECT_EQ(0, downstreamInjectHeaders.size());
+}
+
+TEST_F(InjectFilterTest, GoodConfigDownstreamAllowAnyExplicitFalse) {
+  const std::string filter_config = R"EOF(
+  {
+    "trigger_headers": ["cookie.sessId"],
+    "downstream_inject_headers": ["x-myco-jwt", "x-foo-baffity"],
+    "downstream_inject_any": false,
+    "cluster_name": "sessionCheck"
+  }
+  )EOF";
+
+  Json::ObjectSharedPtr config = Json::Factory::loadFromString(filter_config);
+  Http::InjectFilterConfigSharedPtr fconfig = Server::Configuration::InjectFilterConfig::createConfig(*config, "", fac_ctx_);
+  bool t = fconfig->downstream_inject_any();
+  EXPECT_EQ(false, t);
+  std::vector<Http::LowerCaseString> downstreamInjectHeaders = fconfig->downstream_inject_headers();
+  EXPECT_EQ(2, downstreamInjectHeaders.size());
+}
+
+TEST_F(InjectFilterTest, GoodConfigDownstreamAllowAnyImplictFalse) {
+  const std::string filter_config = R"EOF(
+  {
+    "trigger_headers": ["cookie.sessId"],
+    "downstream_inject_headers": ["x-myco-jwt", "x-foo", "x-bar", "x-baz"],
+    "cluster_name": "sessionCheck"
+  }
+  )EOF";
+
+  Json::ObjectSharedPtr config = Json::Factory::loadFromString(filter_config);
+  Http::InjectFilterConfigSharedPtr fconfig = Server::Configuration::InjectFilterConfig::createConfig(*config, "", fac_ctx_);
+  bool t = fconfig->downstream_inject_any();
+  EXPECT_EQ(t, t);
+  std::vector<Http::LowerCaseString> downstreamInjectHeaders = fconfig->downstream_inject_headers();
+  EXPECT_EQ(4, downstreamInjectHeaders.size());
+  EXPECT_EQ("x-myco-jwt", downstreamInjectHeaders.at(0).get());
+  EXPECT_EQ("x-foo", downstreamInjectHeaders.at(1).get());
+  EXPECT_EQ("x-bar", downstreamInjectHeaders.at(2).get());
+  EXPECT_EQ("x-baz", downstreamInjectHeaders.at(3).get());
+}
 
 TEST_F(InjectFilterTest, CookieParserMiddle) {
   std::string c("geo=x; sessionId=939133-x9393; dnt=a314");

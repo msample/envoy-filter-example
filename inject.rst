@@ -87,7 +87,7 @@ include_all_headers
 upstream_inject_headers
   *(optional, array)* header name strings desired to be injected into
   the upstream request.  These names will be provided to the gRPC
-  inject request and only these headers response may be injected.
+  inject request and these headers in the response may be injected.
   Only headers named in this list are allowed to be injected unless
   *upstream_inject_any* is true.  Any others returned in the gRPC
   response will be ignored.  The gRPC responder may choose not provide
@@ -111,6 +111,20 @@ upstream_remove_headers
   allows sensitve headers such as session ids and access tokens to be
   removed from upstream requests after another header is injected with
   a transient token such as a signed JWT with short validity period.
+
+downstream_inject_headers
+  *(optional, array)* header name strings desired to be injected into
+  the downstream response.  These names will be provided to the gRPC
+  inject request and only these headers in the response may be
+  injected; others returned in the gRPC response will be ignored (see
+  *downstream_inject_any to loosen this). If the injected header
+  already exists in the downstream response, the injected one replaces
+  the original one.
+
+downstream_inject_any
+
+downstream_remove_headers
+
 
 cluster_name
   *(required, string)* cluster to use for the gRPC calls to the
