@@ -118,7 +118,7 @@ FilterHeadersStatus InjectFilter::decodeHeaders(HeaderMap& headers, bool end_str
     }
   }
 
-  inject::InjectRequest ir; // sizeof is 72 
+  inject::InjectRequest ir; // sizeof is 72
   for (const Http::LowerCaseString& element : config_->trigger_headers()) {
     const Http::HeaderEntry* h = headers.get(element);
     if (h) {
