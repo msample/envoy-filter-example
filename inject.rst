@@ -32,22 +32,25 @@ server while another talks to your session service.
       "upstream_inject_headers": [],
       "upstream_inject_any": (boolean),
       "upstream_remove_headers": [],
+      "downstream_inject_headers": [],
+      "downstream_inject_any": (boolean),
+      "downstream_remove_headers": [],
       "cluster_name": "...",
       "timeout_ms": (int)
     }
   }
 
-antitrigger_headers
+antitrigger_headers // TODO change this to allow value & regexp too
   *(optional, array)* header name strings where any of which present
   in a request will disable injection.  For example, if antitriggers
-  has "x-skip-injecton" and the request has that header with any
-  non-empty value, the injection filter will not attempt to inject
-  any headers.
+  has "x-skip-injecton" and the request has that header, the injection
+  filter will not do anything to that request or its response, nor
+  will a request be sent to the injector service.
 
-trigger_headers
+trigger_headers // TODO change this to allow value & regexp too
   *(sometimes required, array)* header name strings, where any of
   which present in a request will cause injection to be attempted
-  unless an antitrigger is present.  These headers names also support
+  unless an antitrigger is present.  These header names also support
   "cookie.(cookie-name)" syntax so you can trigger on the presence of
   a specific cookie. For example, "cookie.session" will trigger
   injection if a cookie named "session" (case sensitive) is present in
@@ -59,7 +62,7 @@ trigger_headers
   always_triggered is not explicitly specified, this field is
   required.
 
-always_triggered:
+always_triggered:  // TODO change this to triggered_percentage, 0-100
   *(optional, boolean)* forces this filter to attempt injection for
   every request if set true. Defaults to false if unspecified.  If
   *always_triggered* is explicitly set to false, this filter will only
@@ -86,23 +89,24 @@ include_all_headers
 
 upstream_inject_headers
   *(optional, array)* header name strings desired to be injected into
-  the upstream request.  These names will be provided to the gRPC
-  inject request and these headers in the response may be injected.
-  Only headers named in this list are allowed to be injected unless
-  *upstream_inject_any* is true.  Any others returned in the gRPC
-  response will be ignored.  The gRPC responder may choose not provide
-  values for every one of these. Strongly consider also adding these
-  to the *internal_only_headers* of the *route_config* so they are
-  stripped first if they arrive from outside (prevent forgeries).
-  Also consider signatures on these header values to prevent forgeries
-  from inside your network. For example, use the RSA or ECC signatures
-  on a JWT.  If the injected header already exists in the request, the
-  injected one replaces the original one.
+  the upstream request.  These names will be provided in the gRPC
+  inject request and these headers in the response may be injected or
+  removed.  Only headers named in this list are allowed to be injected
+  or removed unless *upstream_inject_any* is true.  Any others
+  returned in the gRPC response will be ignored.  The gRPC responder
+  may choose not to provide values for every one of these. Strongly
+  consider also adding these to the *internal_only_headers* of the
+  *route_config* so they are stripped first if they arrive from
+  outside (prevent forgeries).  Also consider signatures on these
+  header values to prevent forgeries from inside your network. For
+  example, use the RSA or ECC signatures on a JWT.  If the injected
+  header already exists in the request, the injected one replaces the
+  original one.
 
 upstream_inject_any
   *(optional, boolean)* inject every header value returned in the gRPC
-   response if true. Otherwise, only those named in
-   *upstream_inject_headers* are allowed to be injected.
+   response into the upsream requeest if true. Otherwise, only those
+   named in *upstream_inject_headers* are allowed to be injected.
 
 upstream_remove_headers
   *(optional, array)* header name strings that should be removed from
@@ -111,32 +115,47 @@ upstream_remove_headers
   allows sensitve headers such as session ids and access tokens to be
   removed from upstream requests after another header is injected with
   a transient token such as a signed JWT with short validity period.
+  Note that the injector service may remove headers listed in
+  *upstream_inject_headers* or any header is *upstream_inject_any* is
+  true.
 
 downstream_inject_headers
   *(optional, array)* header name strings desired to be injected into
   the downstream response.  These names will be provided to the gRPC
   inject request and only these headers in the response may be
-  injected; others returned in the gRPC response will be ignored (see
-  *downstream_inject_any to loosen this). If the injected header
-  already exists in the downstream response, the injected one replaces
-  the original one.
+  injected or removed; others returned in the gRPC response will be
+  ignored (see *downstream_inject_any to loosen this). If the injected
+  header already exists in the downstream response, the injected one
+  replaces the original one.
 
 downstream_inject_any
+   *(optional, boolean) inject every header value returned in the gRPC
+   response into the downstream response if true. Otherwise, only
+   those named in *downstream_inject_headers* are allowed to be
+   injected.
 
 downstream_remove_headers
-
+  *(optional, array)* header name strings that should be removed from
+  the downstream response. Header removoval can be done in other ways;
+  if done here it should be tied to the trigger conditions or
+  computation in the injector service.  Note that the injector service
+  may remove downstream headers listed in *downstream_inject_headers*
+  or any header is *downstream_inject_any* is true.
 
 cluster_name
   *(required, string)* cluster to use for the gRPC calls to the
   injection service. This cluster must exist in the config file at
   startup. Dynamic disovery is not supported yet. Ensure that this
   cluster is configured to support gRPC, ie, the http2 feature and
-  ssl_context ALPN h2 are set.
+  if using TLS, ensure ssl_context object is there with ALPN h2 set.
 
 timeout_ms
+
   *(optional, number)* maximum milliseconds to wait for the gRPC
   injection response before simply passing the request upstream
-  without injecting any headers. Defaults to 120. Minimum value is 1
+  without injecting any headers. Defaults to 120. Minimum value is 0.
+  Using a zero timeout may be handy for cases where you mirroring
+  some traffic for monitoring purposes.
 
 
 Failures

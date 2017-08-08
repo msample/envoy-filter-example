@@ -114,6 +114,9 @@ HttpFilterFactoryCb InjectFilterConfig::createFilterFactory(const Json::Object& 
 Http::InjectFilterConfigSharedPtr InjectFilterConfig::createConfig(const Json::Object& json_config,
                                                                    const std::string&,
                                                                    FactoryContext& fac_ctx) {
+
+
+  // CLEANUP - see envoy/source/common/router/config_utility.h
   json_config.validateSchema(INJECT_SCHEMA);
 
   std::vector<Http::LowerCaseString> thdrs_lc;
