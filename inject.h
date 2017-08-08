@@ -138,7 +138,8 @@ private:
   State state_{State::NotTriggered};
   std::unique_ptr<Grpc::AsyncClientImpl<inject::InjectRequest, inject::InjectResponse>> client_;
   Grpc::AsyncRequest* req_{};
-  HeaderMap* hdrs_;
+  HeaderMap* upstream_headers_;
+  std::unique_ptr<inject::InjectResponse> inject_response_;
 };
 
 } // Http

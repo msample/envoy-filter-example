@@ -35,6 +35,9 @@
                         "include_headers": [":path"],
                         "upstream_inject_headers": ["x-myco-jwt"],
                         "upstream_remove_headers": ["cookie.sessId"],
+                        "downstream_inject_headers": ["x-down-1", "x-down-2"],
+                        "downstream_inject_any": true,
+                        "downstream_remove_headers": ["x-down-1"],
                         "cluster_name": "sessions"
                     }
                 },

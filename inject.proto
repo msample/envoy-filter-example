@@ -8,11 +8,15 @@ service InjectService {
 
 message InjectRequest {
   repeated Header inputHeaders = 1;
-  repeated string injectHeaderNames = 2;
+  repeated string upstreamInjectHeaderNames = 2;
+  repeated string downstreamInjectHeaderNames = 3;
 }
 
 message InjectResponse {
-  repeated Header headers = 1;
+  repeated Header upstreamHeaders = 1;            // headers to inject on upstream req
+  repeated string upstreamRemoveHeaderNames = 2;  // header names to remove from upstream req
+  repeated Header downstreamHeaders = 3;          // headers to inject on downstream resp
+  repeated string downstreamRemoveHeaderNames = 4;// header names to remove frmo downstream resp
 }
 
 message Header {

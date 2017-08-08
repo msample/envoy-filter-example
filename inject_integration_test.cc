@@ -59,7 +59,7 @@ public:
     ih = expected_request_msg.mutable_inputheaders()->Add();
     ih->set_key(":path");
     ih->set_value("/some/path?qp1=foo&qp2=bar");
-    expected_request_msg.add_injectheadernames("x-myco-jwt");
+    expected_request_msg.add_upstreaminjectheadernames("x-myco-jwt");
 
     Grpc::Decoder decoder;
     std::vector<Grpc::Frame> decoded_frames;
@@ -100,7 +100,7 @@ public:
   void sendInjectResponse() {
     inject0_request_->encodeHeaders(Http::TestHeaderMapImpl{{":status", "200"}}, false);
     inject::InjectResponse response_msg;
-    inject::Header* ih = response_msg.mutable_headers()->Add();
+    inject::Header* ih = response_msg.mutable_upstreamheaders()->Add();
     ih->set_key("x-myco-jwt");
     ih->set_value("(a-signed-jwt)");
 
