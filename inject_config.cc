@@ -5,6 +5,7 @@
 #include "common/json/config_schemas.h"
 #include "common/json/json_validator.h"
 #include "inject.h"
+#include <iostream>
 
 namespace Envoy {
 namespace Server {
@@ -20,13 +21,13 @@ const std::string INJECT_SCHEMA(R"EOF(
         "type" : "array",
         "minItems" : 1,
         "uniqueItems" : true,
-        "items" : {"type" : "string"},
+        "items" : {"type" : "object"},
         "description": "if any of these request header names have non-empty values, attempt to add 'inject_headers' to the request"
       },
       "antitrigger_headers" : {
         "type" : "array",
         "uniqueItems" : true,
-        "items" : {"type" : "string"},
+        "items" : {"type" : "object"},
         "description": "if any of these request header names have non-empty values, skip this attempt to inject headers even if trigger headers exist."
       },
       "always_triggered" : {
@@ -119,28 +120,28 @@ Http::InjectFilterConfigSharedPtr InjectFilterConfig::createConfig(const Json::O
   // CLEANUP - see envoy/source/common/router/config_utility.h
   json_config.validateSchema(INJECT_SCHEMA);
 
-  std::vector<Http::LowerCaseString> thdrs_lc;
+  std::vector<Router::ConfigUtility::HeaderData> trigger_headers;
   std::vector<std::string> trigger_cookie_names;
   if (json_config.hasObject("trigger_headers") ) {
-    std::vector<std::string> thdrs = json_config.getStringArray("trigger_headers");
-    thdrs_lc.reserve(thdrs.size());
-    for (std::string element : thdrs) {
-      if (element.find("cookie.") == 0) {
-        trigger_cookie_names.push_back(element.substr(7));
+    std::vector<Json::ObjectSharedPtr> thdrs = json_config.getObjectArray("trigger_headers");
+    trigger_headers.reserve(thdrs.size());
+    for (Json::ObjectSharedPtr element : thdrs) {
+      Router::ConfigUtility::HeaderData hd(*element);
+      if (hd.name_.get().find("cookie.") == 0) {
+        trigger_cookie_names.push_back(element->getString("name").substr(7));
         continue;
       }
-      Http::LowerCaseString lcstr(element);
-      thdrs_lc.push_back(lcstr);
+      trigger_headers.push_back(hd);
     }
   }
 
-  std::vector<Http::LowerCaseString> antithdrs_lc;
+  std::vector<Router::ConfigUtility::HeaderData> antitrigger_headers;
   if (json_config.hasObject("antitrigger_headers") ) {
-    std::vector<std::string> antithdrs = json_config.getStringArray("antitrigger_headers");
-    antithdrs_lc.reserve(antithdrs.size());
-    for (std::string element : antithdrs) {
-      Http::LowerCaseString lcstr(element);
-      antithdrs_lc.push_back(lcstr);
+    std::vector<Json::ObjectSharedPtr> antithdrs = json_config.getObjectArray("antitrigger_headers");
+    antitrigger_headers.reserve(antithdrs.size());
+    for (Json::ObjectSharedPtr element : antithdrs) {
+      Router::ConfigUtility::HeaderData hd(*element);
+      antitrigger_headers.push_back(hd);
     }
   }
 
@@ -207,9 +208,9 @@ Http::InjectFilterConfigSharedPtr InjectFilterConfig::createConfig(const Json::O
   const bool downstream_inject_any  = json_config.getBoolean("downstream_inject_any", false);
 
   bool always_triggered_not_specified  = json_config.getBoolean("always_triggered", true) && !json_config.getBoolean("always_triggered", false);
-  bool disabled = !always_triggered_not_specified && !always_triggered  && (thdrs_lc.size() == 0) && (trigger_cookie_names.size() == 0);
+  bool disabled = !always_triggered_not_specified && !always_triggered  && (trigger_headers.size() == 0) && (trigger_cookie_names.size() == 0);
 
-  if ((thdrs_lc.size() == 0) && (trigger_cookie_names.size() == 0) && !disabled) {
+  if ((trigger_headers.size() == 0) && (trigger_cookie_names.size() == 0) && !disabled) {
     throw EnvoyException("Inject filter requires a non-empty trigger_headers list or always_triggered to be explicitly set.");
   }
 
@@ -224,7 +225,7 @@ Http::InjectFilterConfigSharedPtr InjectFilterConfig::createConfig(const Json::O
     throw EnvoyException("Inject filter requires 'cluster_name' cluster for gRPC inject request to be configured statically in the config file. No such cluster: " + cluster_name);
   }
   // nice to have: ensure no dups in trig vs include hdrs
-  Http::InjectFilterConfigSharedPtr config(new Http::InjectFilterConfig(thdrs_lc, trigger_cookie_names, antithdrs_lc, always_triggered, inc_hdrs_lc,
+  Http::InjectFilterConfigSharedPtr config(new Http::InjectFilterConfig(trigger_headers, trigger_cookie_names, antitrigger_headers, always_triggered, inc_hdrs_lc,
                                                                         include_all_headers, upstream_inject_headers_lc, upstream_inject_any,
                                                                         upstream_remove_headers_lc, upstream_remove_cookie_names,
                                                                         downstream_inject_headers_lc, downstream_inject_any, downstream_remove_headers_lc,

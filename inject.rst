@@ -27,30 +27,31 @@ server while another talks to your session service.
     "config": {
       "antitrigger_headers": [],
       "trigger_headers": [],
-      "always_triggered": (boolean)
+      "always_triggered": boolean
       "include_headers": [],
       "upstream_inject_headers": [],
-      "upstream_inject_any": (boolean),
+      "upstream_inject_any": boolean,
       "upstream_remove_headers": [],
       "downstream_inject_headers": [],
-      "downstream_inject_any": (boolean),
+      "downstream_inject_any": boolean,
       "downstream_remove_headers": [],
       "cluster_name": "...",
-      "timeout_ms": (int)
+      "timeout_ms": int
     }
   }
 
-antitrigger_headers // TODO change this to allow value & regexp too
-  *(optional, array)* header name strings where any of which present
-  in a request will disable injection.  For example, if antitriggers
-  has "x-skip-injecton" and the request has that header, the injection
-  filter will not do anything to that request or its response, nor
-  will a request be sent to the injector service.
+antitrigger_headers
+  *(optional, array)* header constraints any of which matching the
+  request will disable injection.  For example, if antitriggers has {
+  "name":"x-skip-injecton"} and the request has that header, the
+  injection filter will not do anything to that request or its
+  response, nor will a request be sent to the injector service.
+  See the Route config *headers* field for further information.
 
-trigger_headers // TODO change this to allow value & regexp too
-  *(sometimes required, array)* header name strings, where any of
-  which present in a request will cause injection to be attempted
-  unless an antitrigger is present.  These header names also support
+trigger_headers // Todo allow regexp & exact value matches for named cookies too
+  *(sometimes required, array)* header constraints, any of
+  which matching a request will cause injection to be attempted
+  unless an antitrigger is matches.  These header names also support
   "cookie.(cookie-name)" syntax so you can trigger on the presence of
   a specific cookie. For example, "cookie.session" will trigger
   injection if a cookie named "session" (case sensitive) is present in
@@ -150,7 +151,6 @@ cluster_name
   if using TLS, ensure ssl_context object is there with ALPN h2 set.
 
 timeout_ms
-
   *(optional, number)* maximum milliseconds to wait for the gRPC
   injection response before simply passing the request upstream
   without injecting any headers. Defaults to 120. Minimum value is 0.

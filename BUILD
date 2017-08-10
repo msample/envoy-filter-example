@@ -67,6 +67,7 @@ envoy_cc_library(
     repository = "@envoy",
     deps = [
         ":inject_proto",
+        "@envoy//source/common/router:config_utility_lib",
         "@envoy//source/common/grpc:async_client_lib",
         "@envoy//include/envoy/http:filter_interface",
         "@envoy//include/envoy/local_info:local_info_interface",

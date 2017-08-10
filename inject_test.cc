@@ -36,7 +36,7 @@ public:
 TEST_F(InjectFilterTest, BadConfigNoCluster) {
   const std::string filter_config = R"EOF(
   {
-    "trigger_headers": ["cookie.sessId"],
+    "trigger_headers": [{ "name": "cookie.sessId"}],
     "include_headers": [":path"],
     "upstream_inject_headers": ["x-myco-jwt"],
     "upstream_remove_headers": ["cookie.sessId"]
@@ -50,7 +50,7 @@ TEST_F(InjectFilterTest, BadConfigNoCluster) {
 TEST_F(InjectFilterTest, BadConfigUnknownCluster) {
   const std::string filter_config = R"EOF(
   {
-    "trigger_headers": ["cookie.sessId"],
+    "trigger_headers": [{ "name": "cookie.sessId"}],
     "include_headers": [":path"],
     "upstream_inject_headers": ["x-myco-jwt"],
     "upstream_remove_headers": ["cookie.sessId"],
@@ -67,7 +67,7 @@ TEST_F(InjectFilterTest, BadConfigUnknownCluster) {
 TEST_F(InjectFilterTest, GoodConfigWithTimeout) {
   const std::string filter_config = R"EOF(
   {
-    "trigger_headers": ["cookie.sessId"],
+    "trigger_headers": [{ "name": "cookie.sessId"}],
     "include_headers": [":path"],
     "upstream_inject_headers": ["x-myco-jwt"],
     "upstream_remove_headers": ["cookie.sessId"],
@@ -84,7 +84,7 @@ TEST_F(InjectFilterTest, GoodConfigWithTimeout) {
 TEST_F(InjectFilterTest, GoodConfigWithDefaultTimeout) {
   const std::string filter_config = R"EOF(
   {
-    "trigger_headers": ["cookie.sessId"],
+    "trigger_headers": [{ "name": "cookie.sessId"}],
     "include_headers": [":path"],
     "upstream_inject_headers": ["x-myco-jwt"],
     "upstream_remove_headers": ["cookie.sessId"],
@@ -100,7 +100,7 @@ TEST_F(InjectFilterTest, GoodConfigWithDefaultTimeout) {
 TEST_F(InjectFilterTest, BadConfigWithStringTimeout) {
   const std::string filter_config = R"EOF(
   {
-    "trigger_headers": ["cookie.sessId"],
+    "trigger_headers": [{ "name": "cookie.sessId"}],
     "include_headers": [":path"],
     "upstream_inject_headers": ["x-myco-jwt"],
     "upstream_remove_headers": ["cookie.sessId"],
@@ -116,7 +116,7 @@ TEST_F(InjectFilterTest, BadConfigWithStringTimeout) {
 TEST_F(InjectFilterTest, GoodConfigAlwaysTriggeredExplcitFalse) {
   const std::string filter_config = R"EOF(
   {
-    "trigger_headers": ["cookie.sessId"],
+    "trigger_headers": [{ "name": "cookie.sessId"}],
     "always_triggered": false,
     "include_headers": [":path"],
     "upstream_inject_headers": ["x-myco-jwt"],
@@ -133,7 +133,7 @@ TEST_F(InjectFilterTest, GoodConfigAlwaysTriggeredExplcitFalse) {
 TEST_F(InjectFilterTest, GoodConfigAlwaysTriggeredExplcitTrue) {
   const std::string filter_config = R"EOF(
   {
-    "trigger_headers": ["cookie.sessId"],
+    "trigger_headers": [{ "name": "cookie.sessId"}],
     "always_triggered": true,
     "include_headers": [":path"],
     "upstream_inject_headers": ["x-myco-jwt"],
@@ -150,7 +150,7 @@ TEST_F(InjectFilterTest, GoodConfigAlwaysTriggeredExplcitTrue) {
 TEST_F(InjectFilterTest, GoodConfigAlwaysTriggeredImplicitFalse) {
   const std::string filter_config = R"EOF(
   {
-    "trigger_headers": ["cookie.sessId"],
+    "trigger_headers": [{ "name": "cookie.sessId"}],
     "include_headers": [":path"],
     "upstream_inject_headers": ["x-myco-jwt"],
     "upstream_remove_headers": ["cookie.sessId"],
@@ -166,7 +166,7 @@ TEST_F(InjectFilterTest, GoodConfigAlwaysTriggeredImplicitFalse) {
 TEST_F(InjectFilterTest, GoodConfigAlwaysTriggeredDefaultWorks) {
   const std::string filter_config = R"EOF(
   {
-    "trigger_headers": ["x-da-trigger"],
+    "trigger_headers": [{ "name": "x-da-trigger"}],
     "include_headers": ["cookie"],
     "upstream_inject_headers": ["x-myco-jwt"],
     "cluster_name": "sessionCheck"
@@ -207,7 +207,7 @@ TEST_F(InjectFilterTest, GoodConfigAlwaysTriggeredFalseWorks) {
 TEST_F(InjectFilterTest, GoodConfigAlwaysTriggeredTrueWorks) {
   const std::string filter_config = R"EOF(
   {
-    "trigger_headers": ["x-da-trigger"],
+    "trigger_headers": [{ "name": "x-da-trigger"}],
     "include_headers": ["cookie"],
     "upstream_inject_headers": ["x-myco-jwt"],
     "cluster_name": "sessionCheck",
@@ -249,7 +249,7 @@ TEST_F(InjectFilterTest, GoodConfigAlwaysTriggeredExplicitFalseWorks) {
 TEST_F(InjectFilterTest, BadConfigTriggers) {
   const std::string filter_config = R"EOF(
   {
-    "include_headers": ["cookie"],
+    "include_headers": [{ "name": "cookie"}],
     "upstream_inject_headers": ["x-myco-jwt"],
     "cluster_name": "sessionCheck"
   }
@@ -261,7 +261,7 @@ TEST_F(InjectFilterTest, BadConfigTriggers) {
 TEST_F(InjectFilterTest, GoodConfigIncludeAllHeaders) {
   const std::string filter_config = R"EOF(
   {
-    "trigger_headers": ["cookie.sessId"],
+    "trigger_headers": [{ "name": "cookie.sessId"}],
     "include_all_headers": true,
     "upstream_inject_headers": ["x-myco-jwt"],
     "upstream_remove_headers": ["cookie.sessId"],
@@ -277,7 +277,7 @@ TEST_F(InjectFilterTest, GoodConfigIncludeAllHeaders) {
 TEST_F(InjectFilterTest, GoodConfigExplicitDontIncludeAllHeaders) {
   const std::string filter_config = R"EOF(
   {
-    "trigger_headers": ["cookie.sessId"],
+    "trigger_headers": [{ "name": "cookie.sessId"}],
     "include_all_headers": false,
     "upstream_inject_headers": ["x-myco-jwt"],
     "upstream_remove_headers": ["cookie.sessId"],
@@ -293,7 +293,7 @@ TEST_F(InjectFilterTest, GoodConfigExplicitDontIncludeAllHeaders) {
 TEST_F(InjectFilterTest, GoodConfigImplicitDontIncludeAllHeaders) {
   const std::string filter_config = R"EOF(
   {
-    "trigger_headers": ["cookie.sessId"],
+    "trigger_headers": [{ "name": "cookie.sessId"}],
     "upstream_inject_headers": ["x-myco-jwt"],
     "upstream_remove_headers": ["cookie.sessId"],
     "cluster_name": "sessionCheck"
@@ -308,7 +308,7 @@ TEST_F(InjectFilterTest, GoodConfigImplicitDontIncludeAllHeaders) {
 TEST_F(InjectFilterTest, GoodConfigUpstreamAllowAnyExplicitTrue) {
   const std::string filter_config = R"EOF(
   {
-    "trigger_headers": ["cookie.sessId"],
+    "trigger_headers": [{ "name": "cookie.sessId"}],
     "upstream_inject_headers": ["x-myco-jwt"],
     "upstream_inject_any": true,
     "cluster_name": "sessionCheck"
@@ -323,7 +323,7 @@ TEST_F(InjectFilterTest, GoodConfigUpstreamAllowAnyExplicitTrue) {
 TEST_F(InjectFilterTest, GoodConfigUpstreamAllowAnyExplicitFalse) {
   const std::string filter_config = R"EOF(
   {
-    "trigger_headers": ["cookie.sessId"],
+    "trigger_headers": [{ "name": "cookie.sessId"}],
     "upstream_inject_headers": ["x-myco-jwt"],
     "upstream_inject_any": false,
     "cluster_name": "sessionCheck"
@@ -338,7 +338,7 @@ TEST_F(InjectFilterTest, GoodConfigUpstreamAllowAnyExplicitFalse) {
 TEST_F(InjectFilterTest, GoodConfigUpstreamAllowAnyImplictFalse) {
   const std::string filter_config = R"EOF(
   {
-    "trigger_headers": ["cookie.sessId"],
+    "trigger_headers": [{ "name": "cookie.sessId"}],
     "upstream_inject_headers": ["x-myco-jwt"],
     "cluster_name": "sessionCheck"
   }
@@ -352,7 +352,7 @@ TEST_F(InjectFilterTest, GoodConfigUpstreamAllowAnyImplictFalse) {
 TEST_F(InjectFilterTest, GoodConfigDownstreamAllowAnyExplicitTrue) {
   const std::string filter_config = R"EOF(
   {
-    "trigger_headers": ["cookie.sessId"],
+    "trigger_headers": [{ "name": "cookie.sessId"}],
     "downstream_inject_any": true,
     "cluster_name": "sessionCheck"
   }
@@ -369,7 +369,7 @@ TEST_F(InjectFilterTest, GoodConfigDownstreamAllowAnyExplicitTrue) {
 TEST_F(InjectFilterTest, GoodConfigDownstreamAllowAnyExplicitFalse) {
   const std::string filter_config = R"EOF(
   {
-    "trigger_headers": ["cookie.sessId"],
+    "trigger_headers": [{ "name": "cookie.sessId"}],
     "downstream_inject_headers": ["x-myco-jwt", "x-foo-baffity"],
     "downstream_inject_any": false,
     "cluster_name": "sessionCheck"
@@ -387,7 +387,7 @@ TEST_F(InjectFilterTest, GoodConfigDownstreamAllowAnyExplicitFalse) {
 TEST_F(InjectFilterTest, GoodConfigDownstreamAllowAnyImplictFalse) {
   const std::string filter_config = R"EOF(
   {
-    "trigger_headers": ["cookie.sessId"],
+    "trigger_headers": [{ "name": "cookie.sessId"}],
     "downstream_inject_headers": ["x-myco-jwt", "x-foo", "x-bar", "x-baz"],
     "cluster_name": "sessionCheck"
   }
