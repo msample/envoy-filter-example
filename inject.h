@@ -12,6 +12,7 @@
 #include "envoy/upstream/cluster_manager.h"
 #include "envoy/grpc/async_client.h"
 #include "common/grpc/async_client_impl.h"
+#include "common/router/config_utility.h"
 #include "inject.pb.h"
 
 #include "common/common/assert.h"
@@ -29,9 +30,9 @@ namespace Http {
 class InjectFilterConfig {
 public:
 
-  InjectFilterConfig(std::vector<Http::LowerCaseString>& trigger_headers,
+  InjectFilterConfig(std::vector<Router::ConfigUtility::HeaderData>& trigger_headers,
                      std::vector<std::string>& trigger_cookie_names,
-                     std::vector<Http::LowerCaseString>& antitrigger_headers,
+                     std::vector<Router::ConfigUtility::HeaderData>& antitrigger_headers,
                      bool always_triggered,
                      std::vector<Http::LowerCaseString>& include_headers,
                      bool include_all_headers,
@@ -56,9 +57,9 @@ public:
     ASSERT(Protobuf::DescriptorPool::generated_pool()->FindMethodByName("inject.InjectService.InjectHeaders"))
   }
 
-  const std::vector<Http::LowerCaseString>& trigger_headers() { return trigger_headers_; }
+  const std::vector<Router::ConfigUtility::HeaderData>& trigger_headers() { return trigger_headers_; }
   const std::vector<std::string>& trigger_cookie_names() { return trigger_cookie_names_; }
-  const std::vector<Http::LowerCaseString>& antitrigger_headers() { return antitrigger_headers_; }
+  const std::vector<Router::ConfigUtility::HeaderData>& antitrigger_headers() { return antitrigger_headers_; }
   bool always_triggered() { return always_triggered_; }
   const std::vector<Http::LowerCaseString>& include_headers() { return include_headers_; }
   bool include_all_headers() { return include_all_headers_; }
@@ -79,9 +80,10 @@ public:
   const google::protobuf::MethodDescriptor& method_descriptor() { return method_descriptor_; }
 
  private:
-  std::vector<Http::LowerCaseString> trigger_headers_;
+
+  std::vector<Router::ConfigUtility::HeaderData> trigger_headers_;
   std::vector<std::string> trigger_cookie_names_;
-  std::vector<Http::LowerCaseString> antitrigger_headers_;
+  std::vector<Router::ConfigUtility::HeaderData> antitrigger_headers_;
   const bool always_triggered_;
   std::vector<Http::LowerCaseString> include_headers_;
   const bool include_all_headers_;
@@ -129,6 +131,15 @@ public:
 
   static void removeNamedCookie(const std::string& cookie_name, Http::HeaderMap& headers);
   static void removeNamedCookie(const std::string& cookie_name, std::string& cookie_hdr_value);
+
+  static bool matchAnyHeaders(const Http::HeaderMap& request_headers,
+                              const std::vector<Router::ConfigUtility::HeaderData>& config_headers);
+
+  static bool matchHeader(const Http::HeaderMap& request_headers,
+                          const Router::ConfigUtility::HeaderData& config_header);
+
+  static bool matchHeader(const Http::HeaderEntry& request_header,
+                          const Router::ConfigUtility::HeaderData& config_header);
 
 private:
 

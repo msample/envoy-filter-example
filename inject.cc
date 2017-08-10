@@ -132,19 +132,19 @@ FilterHeadersStatus InjectFilter::decodeHeaders(HeaderMap& headers, bool end_str
   // don't attempt to inject anything if any anti-trigger header is in
   // the request and we're not in always_triggered mode.
   if (!triggered ) {
-    for (const Http::LowerCaseString& element : config_->antitrigger_headers()) {
-      const Http::HeaderEntry* h = headers.get(element);
-      if (h) {
-        ENVOY_LOG(trace,"leaving InjectFilter::decodeHeaders, antitrigger header, inst: {}", PINT(this));
-        return FilterHeadersStatus::Continue;
-      }
+    if (matchAnyHeaders(headers, config_->antitrigger_headers())) {
+      ENVOY_LOG(trace,"leaving InjectFilter::decodeHeaders, antitrigger headers match, inst: {}", PINT(this));
+      return FilterHeadersStatus::Continue;
     }
   }
 
   inject::InjectRequest ir; // sizeof is 72
-  for (const Http::LowerCaseString& element : config_->trigger_headers()) {
-    const Http::HeaderEntry* h = headers.get(element);
-    if (h) {
+  for (const Router::ConfigUtility::HeaderData& hd : config_->trigger_headers()) {
+    const Http::HeaderEntry* h = headers.get(hd.name_);
+    if (h == nullptr) {
+      continue;
+    }
+    if (matchHeader(*h, hd)) {
       triggered = true;
       if (config_->include_all_headers()) {
         break;
@@ -324,7 +324,7 @@ void InjectFilter::setEncoderFilterCallbacks(StreamEncoderFilterCallbacks& callb
   encoder_callbacks_ = &callbacks;
 }
 
-
+// FIXME: move these cookie fcns into envoy cookie utils if wanted
 
 static const Http::LowerCaseString cookie_hdr_name{"cookie"};
 
@@ -408,6 +408,54 @@ void InjectFilter::removeNamedCookie(const std::string& cookie_name, std::string
     }
     start_idx = cookie_hdr_value.find(cookie_name + "="); // any more?
   }
+}
+
+
+// FIXME: move these match fcns into envoy Router::ConfigUtility
+
+/**
+ * See if any of the specified headers are present in the request headers.
+ * @param request_headers supplies the list of headers to match
+ * @param config_headers supplies the list of header matching constraints
+ * @return true one or more for the config_headers match a request_headers entry
+ */
+bool InjectFilter::matchAnyHeaders(const Http::HeaderMap& request_headers,
+                                   const std::vector<Router::ConfigUtility::HeaderData>& config_headers) {
+
+  if (!config_headers.empty()) {
+    for (const Router::ConfigUtility::HeaderData& config_header : config_headers) {
+      if (matchHeader(request_headers, config_header)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+/**
+ * See if any of the specified header is present in the request headers.
+ * @param request_headers supplies the list of headers to match
+ * @param config_header supplies the header macthing constraint
+ * @return true if config_header matches one of the request_headers
+ */
+bool InjectFilter::matchHeader(const Http::HeaderMap& request_headers,
+                               const Router::ConfigUtility::HeaderData& config_header) {
+  const Http::HeaderEntry* header = request_headers.get(config_header.name_);
+  if (header == nullptr) {
+    return false;
+  }
+  return matchHeader(*header, config_header);
+}
+
+ bool InjectFilter::matchHeader(const Http::HeaderEntry& request_header,
+                                const Router::ConfigUtility::HeaderData& config_header) {
+  if (config_header.value_.empty()) {
+    return true;
+  }
+  if (!config_header.is_regex_) {
+        return request_header.value() == config_header.value_.c_str();
+  }
+  return std::regex_match(request_header.value().c_str(), config_header.regex_pattern_);
 }
 
 

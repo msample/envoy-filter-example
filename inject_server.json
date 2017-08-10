@@ -31,7 +31,7 @@
                     "type": "both",
                     "name": "inject",
                     "config": {
-                        "trigger_headers": ["cookie.sessId"],
+                        "trigger_headers": [{"name": "cookie.sessId"}],
                         "include_headers": [":path"],
                         "upstream_inject_headers": ["x-myco-jwt"],
                         "upstream_remove_headers": ["cookie.sessId"],
@@ -45,8 +45,8 @@
                     "type": "both",
                     "name": "inject",
                     "config": {
-                        "trigger_headers": ["authorization"],
-                        "antitrigger_headers": ["x-myco-jwt"],
+                        "trigger_headers": [{"name":"authorization"}],
+                        "antitrigger_headers": [{"name":"x-myco-jwt"}],
                         "include_headers": [],
                         "upstream_inject_headers": ["x-myco-jwt", "x-myco-jwt-v2"],
                         "upstream_remove_headers": ["authorization"],
@@ -57,8 +57,8 @@
                     "type": "both",
                     "name": "inject",
                     "config": {
-                        "trigger_headers": ["x-myco-authn"],
-                        "antitrigger_headers": ["x-myco-jwt", "x-myco-jwt-v2"],
+                        "trigger_headers": [{"name":"x-myco-authn"}],
+                        "antitrigger_headers": [{"name":"x-myco-jwt"}, {"name":"x-myco-jwt-v2"}],
                         "include_headers": ["x-myco-extra"],
                         "upstream_inject_headers": ["x-myco-jwt-v2", "x-myco-jwt-v3"],
                         "upstream_remove_headers": ["x-myco-authn"],
