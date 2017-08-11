@@ -4,7 +4,7 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include <iostream>
+#include <map>
 
 #include "envoy/http/filter.h"
 #include "envoy/local_info/local_info.h"
@@ -36,6 +36,7 @@ public:
                      bool always_triggered,
                      std::vector<Http::LowerCaseString>& include_headers,
                      bool include_all_headers,
+                     std::map<std::string,std::string> params,
                      std::vector<Http::LowerCaseString>& upstream_inject_headers,
                      bool upstream_inject_any,
                      std::vector<Http::LowerCaseString>& upstream_remove_headers,
@@ -48,7 +49,7 @@ public:
                      int64_t timeout_ms):
   trigger_headers_(trigger_headers), trigger_cookie_names_(trigger_cookie_names), antitrigger_headers_(antitrigger_headers),
     always_triggered_(always_triggered), include_headers_(include_headers), include_all_headers_(include_all_headers),
-    upstream_inject_headers_(upstream_inject_headers), upstream_inject_any_(upstream_inject_any),
+    params_(params), upstream_inject_headers_(upstream_inject_headers), upstream_inject_any_(upstream_inject_any),
     upstream_remove_headers_(upstream_remove_headers), upstream_remove_cookie_names_(upstream_remove_cookie_names),
     downstream_inject_headers_(downstream_inject_headers), downstream_inject_any_(downstream_inject_any),
     downstream_remove_headers_(downstream_remove_headers), cluster_name_(cluster_name), timeout_ms_(timeout_ms),
@@ -63,6 +64,7 @@ public:
   bool always_triggered() { return always_triggered_; }
   const std::vector<Http::LowerCaseString>& include_headers() { return include_headers_; }
   bool include_all_headers() { return include_all_headers_; }
+  std::map<std::string,std::string>& params() { return params_; }
   const std::vector<Http::LowerCaseString>& upstream_inject_headers() { return upstream_inject_headers_; }
   bool upstream_inject_any() { return upstream_inject_any_; }
   const std::vector<Http::LowerCaseString>& upstream_remove_headers() { return upstream_remove_headers_; }
@@ -87,6 +89,7 @@ public:
   const bool always_triggered_;
   std::vector<Http::LowerCaseString> include_headers_;
   const bool include_all_headers_;
+  std::map<std::string,std::string> params_;
   std::vector<Http::LowerCaseString> upstream_inject_headers_;
   const bool upstream_inject_any_;
   std::vector<Http::LowerCaseString> upstream_remove_headers_;

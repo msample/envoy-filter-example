@@ -44,6 +44,11 @@ const std::string INJECT_SCHEMA(R"EOF(
         "type" : "boolean",
         "description": "Send all headers and pseudo headers with the gRPC inject request. if true, include_headers is ignored. Defaults to false."
       },
+      "params" : {
+        "type" : "object",
+        "additionalProperties" : true,
+        "description": "opaque k/vs (string,string) to pass to the gRCP injection service. Optional. Use these to control implementation specific behaviour (e.g. testing)"
+      },
       "upstream_inject_headers" : {
         "type" : "array",
         "uniqueItems" : true,
@@ -155,6 +160,15 @@ Http::InjectFilterConfigSharedPtr InjectFilterConfig::createConfig(const Json::O
     }
   }
 
+  std::map<std::string,std::string> params;
+  if (json_config.hasObject("params") ) {
+    Json::ObjectSharedPtr p = json_config.getObject("params");
+    p->iterate([&params](const std::string& name, const Json::Object& value) {
+        params.insert(std::pair<std::string,std::string>(name, value.asString()));
+        return true;
+      });
+  }
+
   std::vector<Http::LowerCaseString> upstream_inject_headers_lc;
   if (json_config.hasObject("upstream_inject_headers") ) {
     std::vector<std::string> upstream_inject_headers = json_config.getStringArray("upstream_inject_headers");
@@ -226,7 +240,7 @@ Http::InjectFilterConfigSharedPtr InjectFilterConfig::createConfig(const Json::O
   }
   // nice to have: ensure no dups in trig vs include hdrs
   Http::InjectFilterConfigSharedPtr config(new Http::InjectFilterConfig(trigger_headers, trigger_cookie_names, antitrigger_headers, always_triggered, inc_hdrs_lc,
-                                                                        include_all_headers, upstream_inject_headers_lc, upstream_inject_any,
+                                                                        include_all_headers, params, upstream_inject_headers_lc, upstream_inject_any,
                                                                         upstream_remove_headers_lc, upstream_remove_cookie_names,
                                                                         downstream_inject_headers_lc, downstream_inject_any, downstream_remove_headers_lc,
                                                                         fac_ctx.clusterManager(), cluster_name, timeout_ms));
