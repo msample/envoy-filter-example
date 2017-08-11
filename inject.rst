@@ -157,6 +157,11 @@ timeout_ms
   Using a zero timeout may be handy for cases where you mirroring
   some traffic for monitoring purposes.
 
+redo_routing // TODO Add this
+   *(optional, boolean)* if you wanted injected headers to be able to
+   influence routing set this to true so the route is recacluated
+   after the headers are injected. Defaults to false. May have
+   performance impact with complex routing rules.
 
 Failures
 ========

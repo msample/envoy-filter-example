@@ -7,9 +7,10 @@ service InjectService {
 }
 
 message InjectRequest {
-  repeated Header inputHeaders = 1;
-  repeated string upstreamInjectHeaderNames = 2;
-  repeated string downstreamInjectHeaderNames = 3;
+  map<string,string> params = 1;
+  repeated Header inputHeaders = 2;
+  repeated string upstreamInjectHeaderNames = 3;
+  repeated string downstreamInjectHeaderNames = 4;
 }
 
 message InjectResponse {

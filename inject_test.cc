@@ -405,6 +405,70 @@ TEST_F(InjectFilterTest, GoodConfigDownstreamAllowAnyImplictFalse) {
   EXPECT_EQ("x-baz", downstreamInjectHeaders.at(3).get());
 }
 
+TEST_F(InjectFilterTest, GoodConfigWithParams) {
+  const std::string filter_config = R"EOF(
+  {
+    "trigger_headers": [{ "name": "cookie.sessId"}],
+    "params": { "a": "b", "c": "3", "foo": "bar" },
+    "upstream_inject_headers": ["x-myco-jwt"],
+    "upstream_remove_headers": ["cookie.sessId"],
+    "cluster_name": "sessionCheck"
+  }
+  )EOF";
+
+  Json::ObjectSharedPtr config = Json::Factory::loadFromString(filter_config);
+  Http::InjectFilterConfigSharedPtr fconfig = Server::Configuration::InjectFilterConfig::createConfig(*config, "", fac_ctx_);
+  EXPECT_EQ("b", fconfig->params()["a"]);
+  EXPECT_EQ("3", fconfig->params()["c"]);
+  EXPECT_EQ("bar", fconfig->params()["foo"]);
+}
+
+TEST_F(InjectFilterTest, BadConfigWithParams) {
+  const std::string filter_config = R"EOF(
+  {
+    "trigger_headers": [{ "name": "cookie.sessId"}],
+    "params": { "a": "b", "c": "3", "foo": 99 },
+    "upstream_inject_headers": ["x-myco-jwt"],
+    "upstream_remove_headers": ["cookie.sessId"],
+    "cluster_name": "sessionCheck"
+  }
+  )EOF";
+
+  Json::ObjectSharedPtr config = Json::Factory::loadFromString(filter_config);
+  EXPECT_THROW(Server::Configuration::InjectFilterConfig::createConfig(*config, "", fac_ctx_), EnvoyException);
+}
+
+TEST_F(InjectFilterTest, BadConfigWithParams2) {
+  const std::string filter_config = R"EOF(
+  {
+    "trigger_headers": [{ "name": "cookie.sessId"}],
+    "params": { "a": "b", "c": "3", "foo": false },
+    "upstream_inject_headers": ["x-myco-jwt"],
+    "upstream_remove_headers": ["cookie.sessId"],
+    "cluster_name": "sessionCheck"
+  }
+  )EOF";
+
+  Json::ObjectSharedPtr config = Json::Factory::loadFromString(filter_config);
+  EXPECT_THROW(Server::Configuration::InjectFilterConfig::createConfig(*config, "", fac_ctx_), EnvoyException);
+}
+
+TEST_F(InjectFilterTest, BadConfigWithParams3) {
+  const std::string filter_config = R"EOF(
+  {
+    "trigger_headers": [{ "name": "cookie.sessId"}],
+    "params": { "a": "b", "c": "3", "foo": 38.9 },
+    "upstream_inject_headers": ["x-myco-jwt"],
+    "upstream_remove_headers": ["cookie.sessId"],
+    "cluster_name": "sessionCheck"
+  }
+  )EOF";
+
+  Json::ObjectSharedPtr config = Json::Factory::loadFromString(filter_config);
+  EXPECT_THROW(Server::Configuration::InjectFilterConfig::createConfig(*config, "", fac_ctx_), EnvoyException);
+}
+
+
 TEST_F(InjectFilterTest, CookieParserMiddle) {
   std::string c("geo=x; sessionId=939133-x9393; dnt=a314");
   InjectFilter::removeNamedCookie("sessionId", c);

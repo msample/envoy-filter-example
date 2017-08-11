@@ -198,6 +198,12 @@ FilterHeadersStatus InjectFilter::decodeHeaders(HeaderMap& headers, bool end_str
     }
   }
 
+  if (!config_->params().empty()) {
+    google::protobuf::Map<std::string,std::string>* p = ir.mutable_params();
+    for (std::map<std::string,std::string>::iterator it=config_->params().begin(); it!=config_->params().end(); it++) {
+      (*p)[it->first] = it->second;
+    }
+  }
   // add names of headers we want/allow injected to inject request
   for (const Http::LowerCaseString& element : config_->upstream_inject_headers()) {
     ir.add_upstreaminjectheadernames(element.get());
