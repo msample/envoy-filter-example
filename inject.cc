@@ -62,7 +62,7 @@ void InjectFilter::onSuccess(std::unique_ptr<inject::InjectResponse>&& resp) {
       if (it != inject_hdrs.end()) {
         Http::LowerCaseString lckey(element);
         upstream_headers_->remove(lckey);
-        upstream_headers_->addStaticKey(element, it->second);
+        upstream_headers_->addReferenceKey(element, it->second);
         continue;
       }
     }
@@ -95,9 +95,9 @@ void InjectFilter::onSuccess(std::unique_ptr<inject::InjectResponse>&& resp) {
 }
 
 // called for gRPC call to InjectHeader
-void InjectFilter::onFailure(Grpc::Status::GrpcStatus status) {
+void InjectFilter::onFailure(Grpc::Status::GrpcStatus status, const std::string& message) {
   bool wasSending =   state_ == State::SendingInjectRequest;
-  ENVOY_LOG(warn,"onFailure({}), wasSending={} called on icb: {}", status, wasSending, PINT(this));
+  ENVOY_LOG(warn,"onFailure({}), wasSending={}, msg='{}' called on icb: {}", status, wasSending, message,  PINT(this));
   state_ = State::WaitingForUpstream;
   if (!wasSending) {
     // continue decoding if it won't be done by control flow yet to
@@ -305,7 +305,7 @@ FilterHeadersStatus InjectFilter::encodeHeaders(HeaderMap& headers, bool) {
       if (it != inject_hdrs.end()) {
         Http::LowerCaseString lckey(element);
         headers.remove(lckey);
-        headers.addStaticKey(element, it->second);
+        headers.addReferenceKey(element, it->second);
       }
     }
   }
@@ -352,7 +352,7 @@ void InjectFilter::removeNamedCookie(const std::string& cookie_name, Http::Heade
 
   headers.remove(cookie_hdr_name);  // addStaticKey appends unless remove first
   if (!cookie_hdr_value.empty()) {
-    headers.addStaticKey(cookie_hdr_name, cookie_hdr_value);
+    headers.addReferenceKey(cookie_hdr_name, cookie_hdr_value);
   }
 }
 

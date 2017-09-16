@@ -3,15 +3,15 @@
 #include "common/grpc/common.h"
 #include "inject.pb.h"
 
-#include "test/integration/integration.h"
+#include "test/integration/http_integration.h"
 #include "test/integration/utility.h"
 #include "gtest/gtest.h"
 
 namespace Envoy {
-class InjectIntegrationTest : public BaseIntegrationTest,
+class InjectIntegrationTest : public HttpIntegrationTest,
                               public testing::TestWithParam<Network::Address::IpVersion> {
 public:
-  InjectIntegrationTest() : BaseIntegrationTest(GetParam()) {}
+  InjectIntegrationTest() : HttpIntegrationTest(Http::CodecClient::Type::HTTP1, GetParam()) {}
 
   static const int UPSTREAM_STREAM_IND = 0;
   static const int INJECT0_STREAM_IND = 1;
@@ -36,7 +36,7 @@ public:
 
   void initiateClientConnection() {
     auto conn = makeClientConnection(lookupPort("http"));
-    codec_client_ = makeHttpConnection(std::move(conn), Http::CodecClient::Type::HTTP1);
+    codec_client_ = makeHttpConnection(std::move(conn));
     Http::TestHeaderMapImpl headers{{":method", "GET"}, {":path", "/some/path?qp1=foo&qp2=bar"},
                                     {":scheme", "http"}, {":authority", "host"},
                                     {"cookie", "sessId=123"}, {"x-forwarded-for", "10.0.0.1"}};

@@ -13,7 +13,6 @@ namespace Configuration {
 class InjectFilterConfig : public NamedHttpFilterConfigFactory {
 public:
   std::string name() override { return "inject"; }
-  HttpFilterType type() override { return HttpFilterType::Both; }
 
   HttpFilterFactoryCb createFilterFactory(const Json::Object& json_config,
                                           const std::string& stat_prefix,

@@ -127,7 +127,7 @@ public:
   // Grpc::AsyncRequestCallbacks
   void onCreateInitialMetadata(Http::HeaderMap& metadata) override;
   void onSuccess(std::unique_ptr<inject::InjectResponse>&& response) override;
-  void onFailure(Grpc::Status::GrpcStatus status) override;
+  void onFailure(Grpc::Status::GrpcStatus status, const std::string& message) override;
 
   enum class State { NotTriggered, SendingInjectRequest, InjectRequestSent, WaitingForUpstream, Done };
   State getState() { return state_; }  // testing aid

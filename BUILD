@@ -110,7 +110,7 @@ envoy_cc_test(
         "@envoy//source/common/buffer:zero_copy_input_stream_lib",
         "@envoy//source/common/grpc:codec_lib",
         "@envoy//source/common/grpc:common_lib",
-        "@envoy//test/integration:integration_lib",
+        "@envoy//test/integration:http_integration_lib",
     ],
 )
 
