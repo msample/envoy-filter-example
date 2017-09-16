@@ -20,23 +20,17 @@ void InjectFilter::onCreateInitialMetadata(Http::HeaderMap& ) {
 void InjectFilter::onSuccess(std::unique_ptr<inject::InjectResponse>&& resp) {
   ENVOY_LOG(trace,"InjectFilter::onSuccess (wasSending={}), cb on filter: {}",state_ == State::SendingInjectRequest, PINT(this));
 
-  Http::HeaderMapImpl* hmi = reinterpret_cast<Http::HeaderMapImpl*>(upstream_headers_);
   if (config_->upstream_inject_any()) {
     // inject every header returned in gRPC response #trust
     for (int i = 0; i < resp->upstreamheaders_size(); ++i) {
       const inject::Header& h = resp->upstreamheaders(i);
-      HeaderString key;
-      HeaderString value;
-      key.setCopy(h.key().c_str(), h.key().size());
-      value.setCopy(h.value().c_str(), h.value().size());
       Http::LowerCaseString lckey(h.key().c_str());
-      hmi->remove(lckey);
-      hmi->addViaMove(std::move(key), std::move(value));
+      upstream_headers_->addCopy(lckey, h.value());
     }
     for (int i = 0; i < resp->upstreamremoveheadernames_size(); ++i) {
       const std::string h = resp->upstreamremoveheadernames(i);
       Http::LowerCaseString lckey(h.c_str());
-      hmi->remove(lckey);
+      upstream_headers_->remove(lckey);
     }
   } else {
     // just inject the ones allowed by filter config
@@ -265,22 +259,16 @@ FilterHeadersStatus InjectFilter::encodeHeaders(HeaderMap& headers, bool) {
     return FilterHeadersStatus::Continue;
   }
   if (config_->downstream_inject_any()) {
-    Http::HeaderMapImpl& hmi = reinterpret_cast<Http::HeaderMapImpl&>(headers);
     for (int i = 0; i < inject_response_->downstreamheaders_size(); ++i) {
       const inject::Header& h = inject_response_->downstreamheaders(i);
-      ENVOY_LOG(info, "downstream injecting header {}: {}", h.key(), h.value());
-      HeaderString key;
-      HeaderString value;
-      key.setCopy(h.key().c_str(), h.key().size());
-      value.setCopy(h.value().c_str(), h.value().size());
       Http::LowerCaseString lckey(h.key().c_str());
-      hmi.remove(lckey);
-      hmi.addViaMove(std::move(key), std::move(value));
+      headers.addCopy(lckey, h.value());
+      ENVOY_LOG(info, "downstream injecting header {}: {}", h.key(), h.value());
     }
     for (int i = 0; i < inject_response_->downstreamremoveheadernames_size(); ++i) {
       const std::string h = inject_response_->downstreamremoveheadernames(i);
       Http::LowerCaseString lckey(h.c_str());
-      hmi.remove(lckey);
+      headers.remove(lckey);
     }
   } else {
     std::map<std::string,std::string> inject_hdrs;

@@ -10,8 +10,8 @@ allows multiple injection filters to be stacked yet only one of them
 fires. For example, if the first injection filter is triggered and
 successfully injects some headers, subsequent injection filters can
 use those injected headers as anti-triggers so they don't fire.  This
-is important as the gRPC call must complete before Envoy can forward
-the request to the upstream cluster.
+is important as each inject gRPC call must complete before Envoy can
+forward the request to the upstream cluster.
 
 Stacking injection filters with conditional triggers may make sense if
 you have multiple sources of authentication such as session cookies
@@ -22,7 +22,6 @@ server while another talks to your session service.
 .. code-block:: json
 
   {
-    "type": "both",
     "name": "inject",
     "config": {
       "antitrigger_headers": [],
@@ -87,6 +86,11 @@ include_all_headers
    headers will be sent to the injection service in the gRPC request
    payload if set true. Defaults to false if unspecified. If set true
    the *include_headers* configuration option is ignored.
+
+params // TODO impl this
+  *(optional, object)* opaque named string values to send with gRPC
+  inject request to control implementatation-specific behaviour of
+  injector service ().
 
 upstream_inject_headers
   *(optional, array)* header name strings desired to be injected into
