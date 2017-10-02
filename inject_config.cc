@@ -78,32 +78,32 @@ const std::string INJECT_SCHEMA(R"EOF(
               "description": "passthrough, abort, close, dynamic"
             },
             "upstream_inject_headers" : {
-            "type" : "array",
-            "uniqueItems" : true,
-            "minItems" : 1,
-            "items" : {"type" : "string"},
-            "description": "names of headers desired & allowed be injected into the request. Included in inject RPC to indicate desired headers. Also prevents arbitrary header name injection."
+              "type" : "array",
+              "uniqueItems" : true,
+              "minItems" : 1,
+              "items" : {"type" : "string"},
+              "description": "names of headers desired & allowed be injected into the request. Included in inject RPC to indicate desired headers. Also prevents arbitrary header name injection."
             },
             "upstream_inject_any" : {
-            "type" : "boolean",
-            "description": "if true, inject all upstream headers returned in gRPC response, not just those in upstream_inject_headers."
+              "type" : "boolean",
+              "description": "if true, inject all upstream headers returned in gRPC response, not just those in upstream_inject_headers."
             },
             "upstream_remove_headers" : {
-            "type" : "array",
-            "uniqueItems" : true,
-            "items" : {"type" : "string"},
-            "description": "only after successful injection, remove these headers - typically the trigger and include headers. Consider security - e.g remove session cookie after converting to short-lived jwt by injection."
+              "type" : "array",
+              "uniqueItems" : true,
+              "items" : {"type" : "string"},
+              "description": "only after successful injection, remove these headers - typically the trigger and include headers. Consider security - e.g remove session cookie after converting to short-lived jwt by injection."
             },
             "downstream_inject_headers" : {
-            "type" : "array",
-            "uniqueItems" : true,
-            "minItems" : 1,
-            "items" : {"type" : "string"},
-            "description": "names of headers desired & allowed be injected into the downstream response. Included in inject RPC to indicate desired headers. Also prevents arbitrary header name injection."
+              "type" : "array",
+              "uniqueItems" : true,
+              "minItems" : 1,
+              "items" : {"type" : "string"},
+              "description": "names of headers desired & allowed be injected into the downstream response. Included in inject RPC to indicate desired headers. Also prevents arbitrary header name injection."
             },
             "downstream_inject_any" : {
-            "type" : "boolean",
-            "description": "if true, inject all downstream headers returned in gRPC response, not just those in downstream_inject_headers."
+              "type" : "boolean",
+              "description": "if true, inject all downstream headers returned in gRPC response, not just those in downstream_inject_headers."
             },
             "downstream_remove_headers" : {
               "type" : "array",

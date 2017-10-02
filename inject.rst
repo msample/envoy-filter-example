@@ -97,6 +97,36 @@ params
   inject request to control implementatation-specific behaviour of
   injector service ().
 
+cluster_name
+  *(required, string)* cluster to use for the gRPC calls to the
+  injection service. This cluster must exist in the config file at
+  startup. Dynamic disovery is not supported yet. Ensure that this
+  cluster is configured to support gRPC, ie, the http2 feature and
+  if using TLS, ensure ssl_context object is there with ALPN h2 set.
+
+timeout_ms
+  *(optional, number)* maximum milliseconds to wait for the gRPC
+  injection response before simply passing the request upstream
+  without injecting any headers. Defaults to 120. Minimum value is 0.
+  Using a zero timeout may be handy for cases where you mirroring
+  some traffic for monitoring purposes.
+
+result
+  *(required, array) the result string in the inject response selects
+  which action is selected.  Each action has a list of results that
+  will trigger it.  There can be injector-specific result
+  strings. Well known ones are "ok", "local.any" (wildard),
+  "local.no-response" (timeout or no connection to injection service)
+  "local.grpc-result" (any result in an inject response). Matching
+  first tries exact matches, "local.error" if error, if no match
+  it looks for "local.grpc-result" and finally the "local.any" match.
+  A default "local.any" that returns 500 errors is added but may be
+  overidden. Inject response result values must not start with "local."
+  otherwise they will be ignored.
+
+action
+  *(required, string) "passthrough", "abort" or "dyanmic"
+
 upstream_inject_headers
   *(optional, array)* header name strings desired to be injected into
   the upstream request.  These names will be provided in the gRPC
@@ -152,19 +182,18 @@ downstream_remove_headers
   may remove downstream headers listed in *downstream_inject_headers*
   or any header is *downstream_inject_any* is true.
 
-cluster_name
-  *(required, string)* cluster to use for the gRPC calls to the
-  injection service. This cluster must exist in the config file at
-  startup. Dynamic disovery is not supported yet. Ensure that this
-  cluster is configured to support gRPC, ie, the http2 feature and
-  if using TLS, ensure ssl_context object is there with ALPN h2 set.
+use_rpc_response
+  *(optiontal, boolean) whether to use the response information in the
+   result. defaults to false.
 
-timeout_ms
-  *(optional, number)* maximum milliseconds to wait for the gRPC
-  injection response before simply passing the request upstream
-  without injecting any headers. Defaults to 120. Minimum value is 0.
-  Using a zero timeout may be handy for cases where you mirroring
-  some traffic for monitoring purposes.
+response_code
+  *(optional, integer) defaults to 500.
+
+response_headers
+  *(optional, array) defaults to empty.
+
+response_body
+  *(optional, string) defaults to empty string
 
 redo_routing // TODO Add this
    *(optional, boolean)* if you wanted injected headers to be able to
