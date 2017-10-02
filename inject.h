@@ -23,6 +23,66 @@ namespace Envoy {
 namespace Http {
 
 
+class InjectAction {
+public:
+ InjectAction(std::vector<std::string> result, std::string action,
+              std::vector<Http::LowerCaseString>& upstream_inject_headers,
+              bool upstream_inject_any,
+              std::vector<Http::LowerCaseString>& upstream_remove_headers,
+              std::vector<std::string>& upstream_remove_cookie_names,
+              std::vector<Http::LowerCaseString>& downstream_inject_headers,
+              bool downstream_inject_any,
+              std::vector<Http::LowerCaseString>& downstream_remove_headers,
+              bool use_rpc_response,
+              int response_code, std::map<std::string,std::string>& response_headers, std::string response_body):
+    result_(result), action_(action),
+    upstream_inject_headers_(upstream_inject_headers), upstream_inject_any_(upstream_inject_any),
+    upstream_remove_headers_(upstream_remove_headers), upstream_remove_cookie_names_(upstream_remove_cookie_names),
+    downstream_inject_headers_(downstream_inject_headers), downstream_inject_any_(downstream_inject_any),
+    downstream_remove_headers_(downstream_remove_headers),
+    use_rpc_response_(use_rpc_response), response_code_(response_code), response_headers_(response_headers), response_body_(response_body) { }
+
+  const std::vector<std::string> result_;
+  const std::string action_;
+  const std::vector<Http::LowerCaseString> upstream_inject_headers_;
+  const bool upstream_inject_any_;
+  const std::vector<Http::LowerCaseString> upstream_remove_headers_;
+  const std::vector<std::string> upstream_remove_cookie_names_;
+  const std::vector<Http::LowerCaseString> downstream_inject_headers_;
+  const bool downstream_inject_any_;
+  const std::vector<Http::LowerCaseString> downstream_remove_headers_;
+  const bool use_rpc_response_;
+  const int response_code_;
+  const std::map<std::string,std::string> response_headers_;
+  const std::string response_body_;
+};
+
+
+
+class InjectActionMatcher {
+public:
+  InjectActionMatcher() {
+    std::vector<Http::LowerCaseString> empty_lc_str_vec;
+    std::vector<std::string> empty_str_vec;
+    std::map<std::string,std::string> empty_hdrs;
+    std::vector<std::string> result;
+    result.push_back("local.any");
+    this->add(InjectAction(result, "abort",
+                           empty_lc_str_vec, false,
+                           empty_lc_str_vec, empty_str_vec,
+                           empty_lc_str_vec, false,
+                           empty_lc_str_vec, false,
+                           500, empty_hdrs, ""));
+
+  }
+  const InjectAction& match(const std::string& /* result */) const {
+    return actions[1]; // FIXME
+  }
+  void add(InjectAction&& action) {
+    actions.push_back(std::move(action));
+  }
+  std::vector<InjectAction> actions;
+};
 
 /**
  * Global configuration for the Injector
@@ -37,23 +97,14 @@ public:
                      std::vector<Http::LowerCaseString>& include_headers,
                      bool include_all_headers,
                      std::map<std::string,std::string> params,
-                     std::vector<Http::LowerCaseString>& upstream_inject_headers,
-                     bool upstream_inject_any,
-                     std::vector<Http::LowerCaseString>& upstream_remove_headers,
-                     std::vector<std::string>& upstream_remove_cookie_names,
-                     std::vector<Http::LowerCaseString>& downstream_inject_headers,
-                     bool downstream_inject_any,
-                     std::vector<Http::LowerCaseString>& downstream_remove_headers,
                      Upstream::ClusterManager& cluster_mgr,
                      const std::string cluster_name,
-                     int64_t timeout_ms):
-  trigger_headers_(trigger_headers), trigger_cookie_names_(trigger_cookie_names), antitrigger_headers_(antitrigger_headers),
+                     int64_t timeout_ms,
+                     const InjectActionMatcher& action_matcher):
+    trigger_headers_(trigger_headers), trigger_cookie_names_(trigger_cookie_names), antitrigger_headers_(antitrigger_headers),
     always_triggered_(always_triggered), include_headers_(include_headers), include_all_headers_(include_all_headers),
-    params_(params), upstream_inject_headers_(upstream_inject_headers), upstream_inject_any_(upstream_inject_any),
-    upstream_remove_headers_(upstream_remove_headers), upstream_remove_cookie_names_(upstream_remove_cookie_names),
-    downstream_inject_headers_(downstream_inject_headers), downstream_inject_any_(downstream_inject_any),
-    downstream_remove_headers_(downstream_remove_headers), cluster_name_(cluster_name), timeout_ms_(timeout_ms),
-    cluster_mgr_(cluster_mgr),
+    params_(params), cluster_name_(cluster_name), timeout_ms_(timeout_ms),
+    cluster_mgr_(cluster_mgr), action_matcher_(action_matcher),
     method_descriptor_(*Protobuf::DescriptorPool::generated_pool()->FindMethodByName("inject.InjectService.InjectHeaders")) {
     ASSERT(Protobuf::DescriptorPool::generated_pool()->FindMethodByName("inject.InjectService.InjectHeaders"))
   }
@@ -65,13 +116,6 @@ public:
   const std::vector<Http::LowerCaseString>& include_headers() { return include_headers_; }
   bool include_all_headers() { return include_all_headers_; }
   std::map<std::string,std::string>& params() { return params_; }
-  const std::vector<Http::LowerCaseString>& upstream_inject_headers() { return upstream_inject_headers_; }
-  bool upstream_inject_any() { return upstream_inject_any_; }
-  const std::vector<Http::LowerCaseString>& upstream_remove_headers() { return upstream_remove_headers_; }
-  const std::vector<std::string>& upstream_remove_cookie_names() { return upstream_remove_cookie_names_; }
-  const std::vector<Http::LowerCaseString>& downstream_inject_headers() { return downstream_inject_headers_; }
-  bool downstream_inject_any() { return downstream_inject_any_; }
-  const std::vector<Http::LowerCaseString>& downstream_remove_headers() { return downstream_remove_headers_; }
 
   int64_t timeout_ms() { return timeout_ms_; }
 
@@ -80,6 +124,7 @@ public:
                                                                                                  inject::InjectResponse>(cluster_mgr_, cluster_name_));
   }
   const google::protobuf::MethodDescriptor& method_descriptor() { return method_descriptor_; }
+  const InjectActionMatcher& action_matcher() { return action_matcher_; }
 
  private:
 
@@ -90,16 +135,10 @@ public:
   std::vector<Http::LowerCaseString> include_headers_;
   const bool include_all_headers_;
   std::map<std::string,std::string> params_;
-  std::vector<Http::LowerCaseString> upstream_inject_headers_;
-  const bool upstream_inject_any_;
-  std::vector<Http::LowerCaseString> upstream_remove_headers_;
-  std::vector<std::string> upstream_remove_cookie_names_;
-  std::vector<Http::LowerCaseString> downstream_inject_headers_;
-  const bool downstream_inject_any_;
-  std::vector<Http::LowerCaseString> downstream_remove_headers_;
   const std::string cluster_name_;
   const int64_t timeout_ms_;
   Upstream::ClusterManager& cluster_mgr_;
+  const InjectActionMatcher& action_matcher_;
   const google::protobuf::MethodDescriptor& method_descriptor_;
 };
 
@@ -154,6 +193,7 @@ private:
   Grpc::AsyncRequest* req_{};
   HeaderMap* upstream_headers_;
   std::unique_ptr<inject::InjectResponse> inject_response_;
+  const InjectAction* inject_action_;
 };
 
 } // Http

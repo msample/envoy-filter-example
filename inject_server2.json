@@ -49,15 +49,19 @@
         },
         "filters": [
           {
-            "type": "both",
             "name": "inject",
             "config": {
-              "trigger_headers": [{"name": "cookie.sessId"}],
-              "include_headers": [":path"],
-              "upstream_inject_headers": ["x-myco-jwt"],
-              "upstream_remove_headers": ["cookie.sessId"],
-              "cluster_name": "injector0",
-              "timeout_ms": 300
+                "trigger_headers": [{"name": "cookie.sessId"}],
+                "include_headers": [":path"],
+                "cluster_name": "injector0",
+                "timeout_ms": 300,
+                "actions": [
+                    {
+                        "result": [ "ok" ],
+                        "upstream_inject_headers": ["x-myco-jwt"],
+                        "upstream_remove_headers": ["cookie.sessId"]
+                    }
+                ]
             }
           },
           { "type": "decoder", "name": "router", "config": {} }

@@ -59,7 +59,8 @@ public:
     ih = expected_request_msg.mutable_inputheaders()->Add();
     ih->set_key(":path");
     ih->set_value("/some/path?qp1=foo&qp2=bar");
-    expected_request_msg.add_upstreaminjectheadernames("x-myco-jwt");
+    //no longer used. per-action so not shared.
+    //expected_request_msg.add_upstreaminjectheadernames("x-myco-jwt");
 
     Grpc::Decoder decoder;
     std::vector<Grpc::Frame> decoded_frames;

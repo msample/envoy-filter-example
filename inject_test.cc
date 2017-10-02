@@ -69,10 +69,15 @@ TEST_F(InjectFilterTest, GoodConfigWithTimeout) {
   {
     "trigger_headers": [{ "name": "cookie.sessId"}],
     "include_headers": [":path"],
-    "upstream_inject_headers": ["x-myco-jwt"],
-    "upstream_remove_headers": ["cookie.sessId"],
     "cluster_name": "sessionCheck",
-    "timeout_ms": 2222
+    "timeout_ms": 2222,
+    "actions": [
+      {
+        "result": ["ok"],
+        "upstream_inject_headers": ["x-myco-jwt"],
+        "upstream_remove_headers": ["cookie.sessId"]
+      }
+    ]
   }
   )EOF";
 
@@ -86,9 +91,14 @@ TEST_F(InjectFilterTest, GoodConfigWithDefaultTimeout) {
   {
     "trigger_headers": [{ "name": "cookie.sessId"}],
     "include_headers": [":path"],
-    "upstream_inject_headers": ["x-myco-jwt"],
-    "upstream_remove_headers": ["cookie.sessId"],
-    "cluster_name": "sessionCheck"
+    "cluster_name": "sessionCheck",
+    "actions": [
+      {
+        "result": ["ok"],
+        "upstream_inject_headers": ["x-myco-jwt"],
+        "upstream_remove_headers": ["cookie.sessId"]
+      }
+    ]
   }
   )EOF";
 
@@ -119,9 +129,14 @@ TEST_F(InjectFilterTest, GoodConfigAlwaysTriggeredExplcitFalse) {
     "trigger_headers": [{ "name": "cookie.sessId"}],
     "always_triggered": false,
     "include_headers": [":path"],
-    "upstream_inject_headers": ["x-myco-jwt"],
-    "upstream_remove_headers": ["cookie.sessId"],
-    "cluster_name": "sessionCheck"
+    "cluster_name": "sessionCheck",
+    "actions": [
+      {
+        "result": ["ok"],
+        "upstream_inject_headers": ["x-myco-jwt"],
+        "upstream_remove_headers": ["cookie.sessId"]
+      }
+    ]
   }
   )EOF";
 
@@ -136,9 +151,14 @@ TEST_F(InjectFilterTest, GoodConfigAlwaysTriggeredExplcitTrue) {
     "trigger_headers": [{ "name": "cookie.sessId"}],
     "always_triggered": true,
     "include_headers": [":path"],
-    "upstream_inject_headers": ["x-myco-jwt"],
-    "upstream_remove_headers": ["cookie.sessId"],
-    "cluster_name": "sessionCheck"
+    "cluster_name": "sessionCheck",
+    "actions": [
+      {
+        "result": ["ok"],
+        "upstream_inject_headers": ["x-myco-jwt"],
+        "upstream_remove_headers": ["cookie.sessId"]
+      }
+    ]
   }
   )EOF";
 
@@ -152,9 +172,14 @@ TEST_F(InjectFilterTest, GoodConfigAlwaysTriggeredImplicitFalse) {
   {
     "trigger_headers": [{ "name": "cookie.sessId"}],
     "include_headers": [":path"],
-    "upstream_inject_headers": ["x-myco-jwt"],
-    "upstream_remove_headers": ["cookie.sessId"],
-    "cluster_name": "sessionCheck"
+    "cluster_name": "sessionCheck",
+    "actions": [
+      {
+        "result": ["ok"],
+        "upstream_inject_headers": ["x-myco-jwt"],
+        "upstream_remove_headers": ["cookie.sessId"]
+      }
+    ]
   }
   )EOF";
 
@@ -168,8 +193,14 @@ TEST_F(InjectFilterTest, GoodConfigAlwaysTriggeredDefaultWorks) {
   {
     "trigger_headers": [{ "name": "x-da-trigger"}],
     "include_headers": ["cookie"],
-    "upstream_inject_headers": ["x-myco-jwt"],
-    "cluster_name": "sessionCheck"
+    "cluster_name": "sessionCheck",
+    "actions": [
+      {
+        "result": ["ok"],
+        "upstream_inject_headers": ["x-myco-jwt"]
+      }
+    ]
+
   }
   )EOF";
   Json::ObjectSharedPtr config = Json::Factory::loadFromString(filter_config);
@@ -187,9 +218,14 @@ TEST_F(InjectFilterTest, GoodConfigAlwaysTriggeredFalseWorks) {
   const std::string filter_config = R"EOF(
   {
     "include_headers": ["cookie"],
-    "upstream_inject_headers": ["x-myco-jwt"],
     "cluster_name": "sessionCheck",
-    "always_triggered": false
+    "always_triggered": false,
+    "actions": [
+      {
+        "result": ["ok"],
+        "upstream_inject_headers": ["x-myco-jwt"]
+      }
+    ]
   }
   )EOF";
   Json::ObjectSharedPtr config = Json::Factory::loadFromString(filter_config);
@@ -209,9 +245,14 @@ TEST_F(InjectFilterTest, GoodConfigAlwaysTriggeredTrueWorks) {
   {
     "trigger_headers": [{ "name": "x-da-trigger"}],
     "include_headers": ["cookie"],
-    "upstream_inject_headers": ["x-myco-jwt"],
     "cluster_name": "sessionCheck",
-    "always_triggered": true
+    "always_triggered": true,
+    "actions": [
+      {
+        "result": ["ok"],
+        "upstream_inject_headers": ["x-myco-jwt"]
+      }
+    ]
   }
   )EOF";
   Json::ObjectSharedPtr config = Json::Factory::loadFromString(filter_config);
@@ -230,9 +271,14 @@ TEST_F(InjectFilterTest, GoodConfigAlwaysTriggeredExplicitFalseWorks) {
   const std::string filter_config = R"EOF(
   {
     "include_headers": ["cookie"],
-    "upstream_inject_headers": ["x-myco-jwt"],
     "cluster_name": "sessionCheck",
-    "always_triggered": false
+    "always_triggered": false,
+    "actions":[
+      {
+        "result": ["ok"],
+        "upstream_inject_headers": ["x-myco-jwt"]
+      }
+    ]
   }
   )EOF";  // note trigger_headers not req'd if explicit value for always_triggered
   Json::ObjectSharedPtr config = Json::Factory::loadFromString(filter_config);
@@ -250,8 +296,13 @@ TEST_F(InjectFilterTest, BadConfigTriggers) {
   const std::string filter_config = R"EOF(
   {
     "include_headers": [{ "name": "cookie"}],
-    "upstream_inject_headers": ["x-myco-jwt"],
-    "cluster_name": "sessionCheck"
+    "cluster_name": "sessionCheck",
+    "actions":[
+      {
+        "result": ["ok"],
+        "upstream_inject_headers": ["x-myco-jwt"]
+      }
+    ]
   }
   )EOF";  // no trigger_headers & no always_triggered not allowed
   Json::ObjectSharedPtr config = Json::Factory::loadFromString(filter_config);
@@ -263,9 +314,14 @@ TEST_F(InjectFilterTest, GoodConfigIncludeAllHeaders) {
   {
     "trigger_headers": [{ "name": "cookie.sessId"}],
     "include_all_headers": true,
-    "upstream_inject_headers": ["x-myco-jwt"],
-    "upstream_remove_headers": ["cookie.sessId"],
-    "cluster_name": "sessionCheck"
+    "cluster_name": "sessionCheck",
+    "actions":[
+      {
+        "result": ["ok"],
+        "upstream_inject_headers": ["x-myco-jwt"],
+        "upstream_remove_headers": ["cookie.sessId"]
+      }
+    ]
   }
   )EOF";
 
@@ -279,9 +335,13 @@ TEST_F(InjectFilterTest, GoodConfigExplicitDontIncludeAllHeaders) {
   {
     "trigger_headers": [{ "name": "cookie.sessId"}],
     "include_all_headers": false,
-    "upstream_inject_headers": ["x-myco-jwt"],
-    "upstream_remove_headers": ["cookie.sessId"],
-    "cluster_name": "sessionCheck"
+    "cluster_name": "sessionCheck",
+    "actions": [
+      {
+        "upstream_inject_headers": ["x-myco-jwt"],
+        "upstream_remove_headers": ["cookie.sessId"]
+      }
+    ]
   }
   )EOF";
 
@@ -294,9 +354,14 @@ TEST_F(InjectFilterTest, GoodConfigImplicitDontIncludeAllHeaders) {
   const std::string filter_config = R"EOF(
   {
     "trigger_headers": [{ "name": "cookie.sessId"}],
-    "upstream_inject_headers": ["x-myco-jwt"],
-    "upstream_remove_headers": ["cookie.sessId"],
-    "cluster_name": "sessionCheck"
+    "cluster_name": "sessionCheck",
+    "actions":[
+      {
+        "result": ["ok"],
+        "upstream_inject_headers": ["x-myco-jwt"],
+        "upstream_remove_headers": ["cookie.sessId"]
+      }
+    ]
   }
   )EOF";
 
@@ -309,14 +374,19 @@ TEST_F(InjectFilterTest, GoodConfigUpstreamAllowAnyExplicitTrue) {
   const std::string filter_config = R"EOF(
   {
     "trigger_headers": [{ "name": "cookie.sessId"}],
-    "upstream_inject_headers": ["x-myco-jwt"],
-    "upstream_inject_any": true,
-    "cluster_name": "sessionCheck"
+    "cluster_name": "sessionCheck",
+    "actions": [
+      {
+        "result": ["ok"],
+        "upstream_inject_headers": ["x-myco-jwt"],
+        "upstream_inject_any": true
+      }
+    ]
   }
   )EOF";
 
   Json::ObjectSharedPtr config = Json::Factory::loadFromString(filter_config);
-  bool t = Server::Configuration::InjectFilterConfig::createConfig(*config, "", fac_ctx_)->upstream_inject_any();
+  bool t = Server::Configuration::InjectFilterConfig::createConfig(*config, "", fac_ctx_)->action_matcher().match("ok").upstream_inject_any_;
   EXPECT_EQ(true, t);
 }
 
@@ -324,14 +394,19 @@ TEST_F(InjectFilterTest, GoodConfigUpstreamAllowAnyExplicitFalse) {
   const std::string filter_config = R"EOF(
   {
     "trigger_headers": [{ "name": "cookie.sessId"}],
-    "upstream_inject_headers": ["x-myco-jwt"],
-    "upstream_inject_any": false,
-    "cluster_name": "sessionCheck"
+    "cluster_name": "sessionCheck",
+    "actions": [
+      {
+        "result": ["ok"],
+        "upstream_inject_headers": ["x-myco-jwt"],
+        "upstream_inject_any": false
+      }
+    ]
   }
   )EOF";
 
   Json::ObjectSharedPtr config = Json::Factory::loadFromString(filter_config);
-  bool t = Server::Configuration::InjectFilterConfig::createConfig(*config, "", fac_ctx_)->upstream_inject_any();
+  bool t = Server::Configuration::InjectFilterConfig::createConfig(*config, "", fac_ctx_)->action_matcher().match("ok").upstream_inject_any_;
   EXPECT_EQ(false, t);
 }
 
@@ -339,13 +414,18 @@ TEST_F(InjectFilterTest, GoodConfigUpstreamAllowAnyImplictFalse) {
   const std::string filter_config = R"EOF(
   {
     "trigger_headers": [{ "name": "cookie.sessId"}],
-    "upstream_inject_headers": ["x-myco-jwt"],
-    "cluster_name": "sessionCheck"
+    "cluster_name": "sessionCheck",
+    "actions": [
+      {
+        "result": ["ok"],
+        "upstream_inject_headers": ["x-myco-jwt"]
+      }
+    ]
   }
   )EOF";
 
   Json::ObjectSharedPtr config = Json::Factory::loadFromString(filter_config);
-  bool t = Server::Configuration::InjectFilterConfig::createConfig(*config, "", fac_ctx_)->upstream_inject_any();
+  bool t = Server::Configuration::InjectFilterConfig::createConfig(*config, "", fac_ctx_)->action_matcher().match("ok").upstream_inject_any_;
   EXPECT_EQ(false, t);
 }
 
@@ -353,16 +433,21 @@ TEST_F(InjectFilterTest, GoodConfigDownstreamAllowAnyExplicitTrue) {
   const std::string filter_config = R"EOF(
   {
     "trigger_headers": [{ "name": "cookie.sessId"}],
-    "downstream_inject_any": true,
-    "cluster_name": "sessionCheck"
+    "cluster_name": "sessionCheck",
+    "actions": [
+      {
+        "result": ["ok"],
+        "downstream_inject_any": true
+      }
+    ]
   }
   )EOF";
 
   Json::ObjectSharedPtr config = Json::Factory::loadFromString(filter_config);
   Http::InjectFilterConfigSharedPtr fconfig = Server::Configuration::InjectFilterConfig::createConfig(*config, "", fac_ctx_);
-  bool t = fconfig->downstream_inject_any();
+  bool t = fconfig->action_matcher().match("ok").downstream_inject_any_;
   EXPECT_EQ(true, t);
-  std::vector<Http::LowerCaseString> downstreamInjectHeaders = fconfig->downstream_inject_headers();
+  std::vector<Http::LowerCaseString> downstreamInjectHeaders = fconfig->action_matcher().match("ok").downstream_inject_headers_;
   EXPECT_EQ(0, downstreamInjectHeaders.size());
 }
 
@@ -370,17 +455,22 @@ TEST_F(InjectFilterTest, GoodConfigDownstreamAllowAnyExplicitFalse) {
   const std::string filter_config = R"EOF(
   {
     "trigger_headers": [{ "name": "cookie.sessId"}],
-    "downstream_inject_headers": ["x-myco-jwt", "x-foo-baffity"],
-    "downstream_inject_any": false,
-    "cluster_name": "sessionCheck"
+    "cluster_name": "sessionCheck",
+    "actions": [
+      {
+        "result": ["ok"],
+        "downstream_inject_headers": ["x-myco-jwt", "x-foo-baffity"],
+        "downstream_inject_any": false
+      }
+    ]
   }
   )EOF";
 
   Json::ObjectSharedPtr config = Json::Factory::loadFromString(filter_config);
   Http::InjectFilterConfigSharedPtr fconfig = Server::Configuration::InjectFilterConfig::createConfig(*config, "", fac_ctx_);
-  bool t = fconfig->downstream_inject_any();
+  bool t = fconfig->action_matcher().match("ok").downstream_inject_any_;
   EXPECT_EQ(false, t);
-  std::vector<Http::LowerCaseString> downstreamInjectHeaders = fconfig->downstream_inject_headers();
+  std::vector<Http::LowerCaseString> downstreamInjectHeaders = fconfig->action_matcher().match("ok").downstream_inject_headers_;
   EXPECT_EQ(2, downstreamInjectHeaders.size());
 }
 
@@ -388,16 +478,21 @@ TEST_F(InjectFilterTest, GoodConfigDownstreamAllowAnyImplictFalse) {
   const std::string filter_config = R"EOF(
   {
     "trigger_headers": [{ "name": "cookie.sessId"}],
-    "downstream_inject_headers": ["x-myco-jwt", "x-foo", "x-bar", "x-baz"],
-    "cluster_name": "sessionCheck"
+    "cluster_name": "sessionCheck",
+    "actions": [
+      {
+        "result": ["ok"],
+        "downstream_inject_headers": ["x-myco-jwt", "x-foo", "x-bar", "x-baz"]
+      }
+    ]
   }
   )EOF";
 
   Json::ObjectSharedPtr config = Json::Factory::loadFromString(filter_config);
   Http::InjectFilterConfigSharedPtr fconfig = Server::Configuration::InjectFilterConfig::createConfig(*config, "", fac_ctx_);
-  bool t = fconfig->downstream_inject_any();
+  bool t = fconfig->action_matcher().match("ok").downstream_inject_any_;
   EXPECT_EQ(t, t);
-  std::vector<Http::LowerCaseString> downstreamInjectHeaders = fconfig->downstream_inject_headers();
+  std::vector<Http::LowerCaseString> downstreamInjectHeaders = fconfig->action_matcher().match("ok").downstream_inject_headers_;
   EXPECT_EQ(4, downstreamInjectHeaders.size());
   EXPECT_EQ("x-myco-jwt", downstreamInjectHeaders.at(0).get());
   EXPECT_EQ("x-foo", downstreamInjectHeaders.at(1).get());
@@ -410,9 +505,14 @@ TEST_F(InjectFilterTest, GoodConfigWithParams) {
   {
     "trigger_headers": [{ "name": "cookie.sessId"}],
     "params": { "a": "b", "c": "3", "foo": "bar" },
-    "upstream_inject_headers": ["x-myco-jwt"],
-    "upstream_remove_headers": ["cookie.sessId"],
-    "cluster_name": "sessionCheck"
+    "cluster_name": "sessionCheck",
+    "actions": [
+      {
+        "result": ["ok"],
+        "upstream_inject_headers": ["x-myco-jwt"],
+        "upstream_remove_headers": ["cookie.sessId"]
+      }
+    ]
   }
   )EOF";
 
@@ -428,9 +528,14 @@ TEST_F(InjectFilterTest, BadConfigWithParams) {
   {
     "trigger_headers": [{ "name": "cookie.sessId"}],
     "params": { "a": "b", "c": "3", "foo": 99 },
-    "upstream_inject_headers": ["x-myco-jwt"],
-    "upstream_remove_headers": ["cookie.sessId"],
-    "cluster_name": "sessionCheck"
+    "cluster_name": "sessionCheck",
+    "actions": [
+      {
+        "result": ["ok"],
+        "upstream_inject_headers": ["x-myco-jwt"],
+        "upstream_remove_headers": ["cookie.sessId"]
+      }
+    ]
   }
   )EOF";
 
@@ -443,9 +548,14 @@ TEST_F(InjectFilterTest, BadConfigWithParams2) {
   {
     "trigger_headers": [{ "name": "cookie.sessId"}],
     "params": { "a": "b", "c": "3", "foo": false },
-    "upstream_inject_headers": ["x-myco-jwt"],
-    "upstream_remove_headers": ["cookie.sessId"],
-    "cluster_name": "sessionCheck"
+    "cluster_name": "sessionCheck",
+    "actions": [
+      {
+        "result": ["ok"],
+        "upstream_inject_headers": ["x-myco-jwt"],
+        "upstream_remove_headers": ["cookie.sessId"]
+      }
+    ]
   }
   )EOF";
 
@@ -458,9 +568,14 @@ TEST_F(InjectFilterTest, BadConfigWithParams3) {
   {
     "trigger_headers": [{ "name": "cookie.sessId"}],
     "params": { "a": "b", "c": "3", "foo": 38.9 },
-    "upstream_inject_headers": ["x-myco-jwt"],
-    "upstream_remove_headers": ["cookie.sessId"],
-    "cluster_name": "sessionCheck"
+    "cluster_name": "sessionCheck",
+    "actions": [
+      {
+        "result": ["ok"],
+        "upstream_inject_headers": ["x-myco-jwt"],
+        "upstream_remove_headers": ["cookie.sessId"]
+      }
+    ]
   }
   )EOF";
 
@@ -468,6 +583,38 @@ TEST_F(InjectFilterTest, BadConfigWithParams3) {
   EXPECT_THROW(Server::Configuration::InjectFilterConfig::createConfig(*config, "", fac_ctx_), EnvoyException);
 }
 
+TEST_F(InjectFilterTest, ActionsBasic) {
+  const std::string filter_config = R"EOF(
+  {
+    "trigger_headers": [{ "name": "cookie.sessId"}],
+    "cluster_name": "sessionCheck",
+    "actions": [
+      {
+        "result": [ "ok" ],
+        "upstream_inject_headers": ["x-myco-jwt"],
+        "upstream_remove_headers": ["cookie.sessId"],
+        "action": "passthrough"
+      },
+      {
+        "result": [ "local.any" ],
+        "action": "abort",
+        "use_rpc_response": false,
+        "response_code": 503,
+        "response_headers": [{ "key": "content-type", "value": "text/html"}],
+        "response_body": "<html><body>identity injection failed</body></html>"
+      }
+    ]
+  }
+  )EOF";
+
+  Json::ObjectSharedPtr config = Json::Factory::loadFromString(filter_config);
+  EXPECT_EQ("passthrough", config->getObjectArray("actions")[0]->getString("action"));
+  EXPECT_EQ("ok", config->getObjectArray("actions")[0]->getStringArray("result")[0]);
+
+  Http::InjectFilterConfigSharedPtr fconfig = Server::Configuration::InjectFilterConfig::createConfig(*config, "", fac_ctx_);
+  //EXPECT_EQ("ok", fconfig->actions()[0]["result"]);
+
+}
 
 TEST_F(InjectFilterTest, CookieParserMiddle) {
   std::string c("geo=x; sessionId=939133-x9393; dnt=a314");

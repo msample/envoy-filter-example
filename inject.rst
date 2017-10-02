@@ -28,14 +28,19 @@ server while another talks to your session service.
       "trigger_headers": [],
       "always_triggered": boolean
       "include_headers": [],
-      "upstream_inject_headers": [],
-      "upstream_inject_any": boolean,
-      "upstream_remove_headers": [],
-      "downstream_inject_headers": [],
-      "downstream_inject_any": boolean,
-      "downstream_remove_headers": [],
       "cluster_name": "...",
-      "timeout_ms": int
+      "timeout_ms": int,
+      "actions": [
+        {
+          "result": [ "ok" ],
+          "upstream_inject_headers": [],
+          "upstream_inject_any": boolean,
+          "upstream_remove_headers": [],
+          "downstream_inject_headers": [],
+          "downstream_inject_any": boolean,
+          "downstream_remove_headers": [],
+        }
+      ]
     }
   }
 
@@ -87,7 +92,7 @@ include_all_headers
    payload if set true. Defaults to false if unspecified. If set true
    the *include_headers* configuration option is ignored.
 
-params // TODO impl this
+params
   *(optional, object)* opaque named string values to send with gRPC
   inject request to control implementatation-specific behaviour of
   injector service ().

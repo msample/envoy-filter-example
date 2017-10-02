@@ -20,7 +20,11 @@ void InjectFilter::onCreateInitialMetadata(Http::HeaderMap& ) {
 void InjectFilter::onSuccess(std::unique_ptr<inject::InjectResponse>&& resp) {
   ENVOY_LOG(trace,"InjectFilter::onSuccess (wasSending={}), cb on filter: {}",state_ == State::SendingInjectRequest, PINT(this));
 
-  if (config_->upstream_inject_any()) {
+  // if want to return/abort here use Http::Utility::sendLocalReply()
+  const InjectAction& action = config_->action_matcher().match(resp->result());
+  inject_action_ = &action;
+
+  if (action.upstream_inject_any_) {
     // inject every header returned in gRPC response #trust
     for (int i = 0; i < resp->upstreamheaders_size(); ++i) {
       const inject::Header& h = resp->upstreamheaders(i);
@@ -44,7 +48,7 @@ void InjectFilter::onSuccess(std::unique_ptr<inject::InjectResponse>&& resp) {
       const std::string h = resp->upstreamremoveheadernames(i);
       remove_hdrs.insert(std::pair<std::string,std::string>(h, h));
     }
-    for (const Http::LowerCaseString& element : config_->upstream_inject_headers()) {
+    for (const Http::LowerCaseString& element : action.upstream_inject_headers_) {
       ENVOY_LOG(info, "Injecting {}",element.get());
       std::map<std::string,std::string>::iterator it = remove_hdrs.find(element.get());
       if (it != remove_hdrs.end()) {
@@ -63,12 +67,12 @@ void InjectFilter::onSuccess(std::unique_ptr<inject::InjectResponse>&& resp) {
   }
 
   // remove any headers named in the config
-  for (const Http::LowerCaseString& element : config_->upstream_remove_headers()) {
+  for (const Http::LowerCaseString& element : action.upstream_remove_headers_) {
     upstream_headers_->remove(element);
   }
 
   // remove any cookies as defined in config
-  for (const std::string& name: config_->upstream_remove_cookie_names()) {
+  for (const std::string& name: action.upstream_remove_cookie_names_) {
     removeNamedCookie(name, *upstream_headers_);
   }
 
@@ -76,7 +80,7 @@ void InjectFilter::onSuccess(std::unique_ptr<inject::InjectResponse>&& resp) {
   state_ = State::WaitingForUpstream;
   ENVOY_LOG(trace,"exiting onSuccess on icb: {}", PINT(this));
 
-  if (config_->downstream_inject_headers().size() > 0 || config_->downstream_inject_any()) {
+  if (action.downstream_inject_headers_.size() > 0 || action.downstream_inject_any_) {
     // only keep resp around if needed for downstream use
     inject_response_ = std::move(resp);
   }
@@ -199,6 +203,7 @@ FilterHeadersStatus InjectFilter::decodeHeaders(HeaderMap& headers, bool end_str
     }
   }
   // add names of headers we want/allow injected to inject request
+  /* skip these for now. Just hints about what client wants. use params
   for (const Http::LowerCaseString& element : config_->upstream_inject_headers()) {
     ir.add_upstreaminjectheadernames(element.get());
   }
@@ -206,7 +211,7 @@ FilterHeadersStatus InjectFilter::decodeHeaders(HeaderMap& headers, bool end_str
   for (const Http::LowerCaseString& element : config_->downstream_inject_headers()) {
     ir.add_downstreaminjectheadernames(element.get());
   }
-
+  */
 
   client_ = config_->inject_client();
 
@@ -258,7 +263,7 @@ FilterHeadersStatus InjectFilter::encodeHeaders(HeaderMap& headers, bool) {
   if (inject_response_ == nullptr) {
     return FilterHeadersStatus::Continue;
   }
-  if (config_->downstream_inject_any()) {
+  if (inject_action_->downstream_inject_any_) {
     for (int i = 0; i < inject_response_->downstreamheaders_size(); ++i) {
       const inject::Header& h = inject_response_->downstreamheaders(i);
       Http::LowerCaseString lckey(h.key().c_str());
@@ -281,7 +286,7 @@ FilterHeadersStatus InjectFilter::encodeHeaders(HeaderMap& headers, bool) {
       const std::string h = inject_response_->downstreamremoveheadernames(i);
       remove_hdrs.insert(std::pair<std::string,std::string>(h, h));
     }
-    for (const Http::LowerCaseString& element : config_->downstream_inject_headers()) {
+    for (const Http::LowerCaseString& element : inject_action_->downstream_inject_headers_) {
       ENVOY_LOG(info, "downstream injecting {}",element.get());
       std::map<std::string,std::string>::iterator it = remove_hdrs.find(element.get());
       if (it != remove_hdrs.end()) {
@@ -298,7 +303,7 @@ FilterHeadersStatus InjectFilter::encodeHeaders(HeaderMap& headers, bool) {
     }
   }
   // remove any headers named in the config
-  for (const Http::LowerCaseString& element : config_->downstream_remove_headers()) {
+  for (const Http::LowerCaseString& element : inject_action_->downstream_remove_headers_) {
     ENVOY_LOG(info, "downstream removing header {}",element.get());
     headers.remove(element);
   }
