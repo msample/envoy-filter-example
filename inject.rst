@@ -197,7 +197,7 @@ downstream_remove_headers
 
 use_rpc_response
   *(optiontal, boolean)* whether to use the response information in the
-   result. defaults to false.
+  result. defaults to false.
 
 response_code
   *(optional, integer)* defaults to 500.
