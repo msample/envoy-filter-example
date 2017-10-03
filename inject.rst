@@ -33,12 +33,17 @@ server while another talks to your session service.
       "actions": [
         {
           "result": [ "ok" ],
+          "action: "..."
           "upstream_inject_headers": [],
           "upstream_inject_any": boolean,
           "upstream_remove_headers": [],
           "downstream_inject_headers": [],
           "downstream_inject_any": boolean,
           "downstream_remove_headers": [],
+          "use_rpc_response": boolean,
+          "response_code": integer,
+          "response_headers": object,
+          "response_body": "..."
         }
       ]
     }
@@ -112,20 +117,28 @@ timeout_ms
   some traffic for monitoring purposes.
 
 result
-  *(required, array) the result string in the inject response selects
-  which action is selected.  Each action has a list of results that
-  will trigger it.  There can be injector-specific result
-  strings. Well known ones are "ok", "local.any" (wildard),
-  "local.no-response" (timeout or no connection to injection service)
-  "local.grpc-result" (any result in an inject response). Matching
-  first tries exact matches, "local.error" if error, if no match
-  it looks for "local.grpc-result" and finally the "local.any" match.
-  A default "local.any" that returns 500 errors is added but may be
-  overidden. Inject response result values must not start with "local."
-  otherwise they will be ignored.
+  *(required, array) the result string in the inject response is used
+  to select the action.  Each action has a list of results that will
+  trigger it.  There can be injector-specific result strings. Well
+  known ones are "ok", "local.any" (wildcard), "local.error"
+  (timeout or no connection to injection service) "local.grpc-result"
+  (any result in an inject response). Matching first tries exact
+  matches, "local.error" if error, if no match it looks for
+  "local.grpc-result" and finally the "local.any" match.  A default
+  "local.any" that aborts with 500 errors is added but may be
+  overidden. Inject response result values must not start with
+  "local." otherwise they will be ignored.
 
 action
-  *(required, string) "passthrough", "abort" or "dyanmic"
+  *(required, string) "passthrough", "abort" or "dynamic".
+  "passthrough" means let the request carry on with injected/removed
+  headers and similarly alter the response by adding/removing the
+  desired header.  "abort" means hairpin the request with a response
+  immediately using the response code, headers and body in the inject
+  response iff use_rpc_response is true, otherwise using the
+  configured response_code, response_headers and
+  response_body. "dynamic" means let the injection service
+  decide if the request should be aborted or passed through.
 
 upstream_inject_headers
   *(optional, array)* header name strings desired to be injected into
