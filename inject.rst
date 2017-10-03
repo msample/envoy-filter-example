@@ -26,23 +26,23 @@ server while another talks to your session service.
     "config": {
       "antitrigger_headers": [],
       "trigger_headers": [],
-      "always_triggered": boolean,
+      "always_triggered": false,
       "include_headers": [],
       "cluster_name": "...",
-      "timeout_ms": int,
+      "timeout_ms": 120,
       "actions": [
         {
           "result": [ "ok" ],
-          "action: "...",
+          "action": "...",
           "upstream_inject_headers": [],
-          "upstream_inject_any": boolean,
+          "upstream_inject_any": false,
           "upstream_remove_headers": [],
           "downstream_inject_headers": [],
-          "downstream_inject_any": boolean,
+          "downstream_inject_any": false,
           "downstream_remove_headers": [],
-          "use_rpc_response": boolean,
-          "response_code": integer,
-          "response_headers": object,
+          "use_rpc_response": false,
+          "response_code": 500,
+          "response_headers": [{ "key":"...", "value": "..."}],
           "response_body": "..."
         }
       ]
