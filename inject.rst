@@ -117,7 +117,7 @@ timeout_ms
   some traffic for monitoring purposes.
 
 result
-  *(required, array) the result string in the inject response is used
+  *(required, array)* the result string in the inject response is used
   to select the action.  Each action has a list of results that will
   trigger it.  There can be injector-specific result strings. Well
   known ones are "ok", "local.any" (wildcard), "local.error"
@@ -130,7 +130,7 @@ result
   "local." otherwise they will be ignored.
 
 action
-  *(required, string) "passthrough", "abort" or "dynamic".
+  *(required, string)* "passthrough", "abort" or "dynamic".
   "passthrough" means let the request carry on with injected/removed
   headers and similarly alter the response by adding/removing the
   desired header.  "abort" means hairpin the request with a response
@@ -158,8 +158,8 @@ upstream_inject_headers
 
 upstream_inject_any
   *(optional, boolean)* inject every header value returned in the gRPC
-   response into the upsream requeest if true. Otherwise, only those
-   named in *upstream_inject_headers* are allowed to be injected.
+  response into the upsream requeest if true. Otherwise, only those
+  named in *upstream_inject_headers* are allowed to be injected.
 
 upstream_remove_headers
   *(optional, array)* header name strings that should be removed from
@@ -182,7 +182,7 @@ downstream_inject_headers
   replaces the original one.
 
 downstream_inject_any
-   *(optional, boolean) inject every header value returned in the gRPC
+   *(optional, boolean)* inject every header value returned in the gRPC
    response into the downstream response if true. Otherwise, only
    those named in *downstream_inject_headers* are allowed to be
    injected.
@@ -196,17 +196,17 @@ downstream_remove_headers
   or any header is *downstream_inject_any* is true.
 
 use_rpc_response
-  *(optiontal, boolean) whether to use the response information in the
+  *(optiontal, boolean)* whether to use the response information in the
    result. defaults to false.
 
 response_code
-  *(optional, integer) defaults to 500.
+  *(optional, integer)* defaults to 500.
 
 response_headers
-  *(optional, array) defaults to empty.
+  *(optional, array)* defaults to empty.
 
 response_body
-  *(optional, string) defaults to empty string
+  *(optional, string)* defaults to empty string
 
 redo_routing // TODO Add this
    *(optional, boolean)* if you wanted injected headers to be able to
@@ -214,9 +214,3 @@ redo_routing // TODO Add this
    after the headers are injected. Defaults to false. May have
    performance impact with complex routing rules.
 
-Failures
-========
-
-If header injection fails due to gRPC timeout etc. the request will be
-passed through as-is and no headers injected.  Not all internal
-endpoints may need authentication or whatever was being injected.
