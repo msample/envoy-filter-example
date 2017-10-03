@@ -26,14 +26,14 @@ server while another talks to your session service.
     "config": {
       "antitrigger_headers": [],
       "trigger_headers": [],
-      "always_triggered": boolean
+      "always_triggered": boolean,
       "include_headers": [],
       "cluster_name": "...",
       "timeout_ms": int,
       "actions": [
         {
           "result": [ "ok" ],
-          "action: "..."
+          "action: "...",
           "upstream_inject_headers": [],
           "upstream_inject_any": boolean,
           "upstream_remove_headers": [],
@@ -177,7 +177,7 @@ downstream_inject_headers
   the downstream response.  These names will be provided to the gRPC
   inject request and only these headers in the response may be
   injected or removed; others returned in the gRPC response will be
-  ignored (see *downstream_inject_any to loosen this). If the injected
+  ignored (see *downstream_inject_any* to loosen this). If the injected
   header already exists in the downstream response, the injected one
   replaces the original one.
 
