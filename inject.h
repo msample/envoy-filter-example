@@ -61,12 +61,14 @@ public:
 
 class InjectActionMatcher {
 public:
-  InjectActionMatcher() {
+  InjectActionMatcher(int maxActions) {
     std::vector<Http::LowerCaseString> empty_lc_str_vec;
     std::vector<std::string> empty_str_vec;
     std::map<std::string,std::string> empty_hdrs;
     std::vector<std::string> result;
     result.push_back("local.any");
+
+    actions_.reserve(maxActions+1);
     this->add(InjectAction(result, "abort",
                            empty_lc_str_vec, false,
                            empty_lc_str_vec, empty_str_vec,
@@ -75,13 +77,52 @@ public:
                            500, empty_hdrs, ""));
 
   }
-  const InjectAction& match(const std::string& /* result */) const {
-    return actions[1]; // FIXME
+
+  // given result from injection response (e.g. "ok") find & return
+  // approrpriate action. If no exact match or wildcard for any
+  // injection response action (local.grpc-response) action is found
+  // the "local.any" action is returned which defaults to abort/500.
+  //
+  // Inject responses should not use the "local." prefix on their
+  // result string since that is just for 'local to Envoy' stuff like
+  // errors. If they try to, the errorAction is used.
+  const InjectAction& match(const std::string& result) const {
+    if (result.find("local.") == 0) {
+      return errorAction();
+    }
+    auto iaPair = action_map_.find(result);
+    if (iaPair == action_map_.end()) {
+      iaPair = action_map_.find("local.grpc-response");
+    }
+    if (iaPair == action_map_.end()) {
+      // we have ensured this exists in ctor (user-provided config may
+      // have overwritten it).
+      iaPair = action_map_.find("local.any");
+    }
+    return *(iaPair->second);
   }
+
+  const InjectAction& errorAction() const {
+    auto iaPair = action_map_.find("local.error");
+    if (iaPair != action_map_.end()) {
+      return *(iaPair->second);
+    }
+    InjectAction* ia = action_map_.at("local.any");
+    return *ia;
+  }
+
+
   void add(InjectAction&& action) {
-    actions.push_back(std::move(action));
+    actions_.push_back(std::move(action));
+    InjectAction* ia = &actions_.back();
+    for (unsigned int i = 0; i < ia->result_.size(); i++ ) {
+      action_map_[ia->result_[i]] = ia;
+    }
   }
-  std::vector<InjectAction> actions;
+
+ private:
+  std::vector<InjectAction> actions_;
+  std::map<std::string,InjectAction*> action_map_;
 };
 
 /**
@@ -168,7 +209,7 @@ public:
   void onSuccess(std::unique_ptr<inject::InjectResponse>&& response) override;
   void onFailure(Grpc::Status::GrpcStatus status, const std::string& message) override;
 
-  enum class State { NotTriggered, SendingInjectRequest, InjectRequestSent, WaitingForUpstream, Done };
+  enum class State { NotTriggered, SendingInjectRequest, InjectRequestSent, Aborting,  WaitingForUpstream, Done };
   State getState() { return state_; }  // testing aid
 
   static void removeNamedCookie(const std::string& cookie_name, Http::HeaderMap& headers);
@@ -184,6 +225,10 @@ public:
                           const Router::ConfigUtility::HeaderData& config_header);
 
 private:
+
+  void handleAction();
+  void handleAbortAction();
+  void handlePassThroughAction();
 
   InjectFilterConfigSharedPtr config_;
   StreamDecoderFilterCallbacks* decoder_callbacks_;

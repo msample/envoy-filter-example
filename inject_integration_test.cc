@@ -101,6 +101,8 @@ public:
   void sendInjectResponse() {
     inject0_request_->encodeHeaders(Http::TestHeaderMapImpl{{":status", "200"}}, false);
     inject::InjectResponse response_msg;
+    response_msg.set_result("ok");
+    response_msg.set_action("passthrough");
     inject::Header* ih = response_msg.mutable_upstreamheaders()->Add();
     ih->set_key("x-myco-jwt");
     ih->set_value("(a-signed-jwt)");
@@ -135,8 +137,11 @@ public:
 
 };
 
-INSTANTIATE_TEST_CASE_P(IpVersions, InjectIntegrationTest,
-                        testing::ValuesIn(TestEnvironment::getIpVersionsForTest())); // {Network::Address::IpVersion::v4}
+  INSTANTIATE_TEST_CASE_P(IpVersions, InjectIntegrationTest, testing::ValuesIn(TestEnvironment::getIpVersionsForTest())); 
+                        //testing::ValuesIn(TestEnvironment::getIpVersionsForTest())); //
+                        //{Network::Address::IpVersion::v4});
+                        //  testing::ValuesIn({ Network::Address::IpVersion::v4 }));
+                          //std::vector<Network::Address::IpVersion>({ Network::Address::IpVersion::v4 }));
 
 
 TEST_P(InjectIntegrationTest, Ok) {
@@ -147,6 +152,7 @@ TEST_P(InjectIntegrationTest, Ok) {
   cleanup();
 }
 
+
 TEST_P(InjectIntegrationTest, ConnectImmediateDisconnect) {
   initiateClientConnection();
   fake_inject0_connection_ = fake_upstreams_[INJECT0_STREAM_IND]->waitForHttpConnection(*dispatcher_);
@@ -154,7 +160,8 @@ TEST_P(InjectIntegrationTest, ConnectImmediateDisconnect) {
   fake_inject0_connection_->waitForDisconnect(true);
   fake_inject0_connection_ = nullptr;
   // fails in passthrough mode for now
-  waitForSuccessfulUpstreamResponse();
+  //waitForSuccessfulUpstreamResponse();
+  waitForFailedUpstreamResponse(500); // add timeotu
   cleanup();
 }
 
@@ -163,7 +170,8 @@ TEST_P(InjectIntegrationTest, Timeout) {
   waitForInject0Request();
   // we dont send a response so filter should timeout waiting for
   // response and passthrough
-  waitForSuccessfulUpstreamResponse();
+  //waitForSuccessfulUpstreamResponse();
+  waitForFailedUpstreamResponse(500); // should have our test timeout?
   cleanup();
 }
 

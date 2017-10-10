@@ -6,6 +6,7 @@
 
 #include "common/grpc/common.h"
 #include "common/http/header_map_impl.h"
+#include "common/buffer/buffer_impl.h"
 
 #define PINT(a) reinterpret_cast<unsigned long long>(a)
 
@@ -20,48 +21,82 @@ void InjectFilter::onCreateInitialMetadata(Http::HeaderMap& ) {
 void InjectFilter::onSuccess(std::unique_ptr<inject::InjectResponse>&& resp) {
   ENVOY_LOG(trace,"InjectFilter::onSuccess (wasSending={}), cb on filter: {}",state_ == State::SendingInjectRequest, PINT(this));
 
-  // if want to return/abort here use Http::Utility::sendLocalReply()
-  const InjectAction& action = config_->action_matcher().match(resp->result());
-  inject_action_ = &action;
+  // put response & matching action in filter state then run appropriate handler
+  inject_action_ = &config_->action_matcher().match(resp->result());
+  inject_response_ = std::move(resp);
+  handleAction();
+}
 
+// called for gRPC call to InjectHeader
+void InjectFilter::onFailure(Grpc::Status::GrpcStatus status, const std::string& message) {
+  bool wasSending =   state_ == State::SendingInjectRequest;
+  ENVOY_LOG(warn,"onFailure({}), wasSending={}, msg='{}' called on icb: {}", status, wasSending, message,  PINT(this));
+  inject_action_ = &config_->action_matcher().errorAction();
+  handleAction();
+}
+
+void InjectFilter::onDestroy() {
+  if (state_ == State::InjectRequestSent) {
+    if (req_) {
+      req_->cancel();
+      req_ = nullptr;
+    }
+  }
+  state_ = State::Done;
+  ENVOY_LOG(trace,"decoder filter onDestroy called on: {}", PINT(this));
+}
+
+
+void InjectFilter::handleAction()  {
+  if (inject_action_->action_ == "passthrough"
+      || (inject_action_->action_ == "dynamic" && inject_response_->action() == "passthrough")) {
+    handlePassThroughAction();
+  } else {
+    handleAbortAction();
+  }
+}
+
+void InjectFilter::handlePassThroughAction()  {
+  ENVOY_LOG(trace,"decoder filter handling passthrough (post inj response) {}", PINT(this));
+  const InjectAction& action = *inject_action_;
   if (action.upstream_inject_any_) {
     // inject every header returned in gRPC response #trust
-    for (int i = 0; i < resp->upstreamheaders_size(); ++i) {
-      const inject::Header& h = resp->upstreamheaders(i);
+    for (int i = 0; i < inject_response_->upstreamheaders_size(); ++i) {
+      const inject::Header& h = inject_response_->upstreamheaders(i);
       Http::LowerCaseString lckey(h.key().c_str());
       upstream_headers_->addCopy(lckey, h.value());
     }
-    for (int i = 0; i < resp->upstreamremoveheadernames_size(); ++i) {
-      const std::string h = resp->upstreamremoveheadernames(i);
+    for (int i = 0; i < inject_response_->upstreamremoveheadernames_size(); ++i) {
+      const std::string h = inject_response_->upstreamremoveheadernames(i);
       Http::LowerCaseString lckey(h.c_str());
       upstream_headers_->remove(lckey);
     }
   } else {
     // just inject the ones allowed by filter config
     std::map<std::string,std::string> inject_hdrs;
-    for (int i = 0; i < resp->upstreamheaders_size(); ++i) {
-      const inject::Header& h = resp->upstreamheaders(i);
+    for (int i = 0; i < inject_response_->upstreamheaders_size(); ++i) {
+      const inject::Header& h = inject_response_->upstreamheaders(i);
       inject_hdrs.insert(std::pair<std::string,std::string>(h.key(), h.value()));
     }
     std::map<std::string,std::string> remove_hdrs;
-    for (int i = 0; i < resp->upstreamremoveheadernames_size(); ++i) {
-      const std::string h = resp->upstreamremoveheadernames(i);
+    for (int i = 0; i < inject_response_->upstreamremoveheadernames_size(); ++i) {
+      const std::string h = inject_response_->upstreamremoveheadernames(i);
       remove_hdrs.insert(std::pair<std::string,std::string>(h, h));
     }
     for (const Http::LowerCaseString& element : action.upstream_inject_headers_) {
-      ENVOY_LOG(info, "Injecting {}",element.get());
       std::map<std::string,std::string>::iterator it = remove_hdrs.find(element.get());
       if (it != remove_hdrs.end()) {
-        Http::LowerCaseString lckey(element);
-        upstream_headers_->remove(lckey);
+        ENVOY_LOG(info, "Removing upstream {}",element.get());
+        upstream_headers_->remove(element);
         continue;
       }
       it = inject_hdrs.find(element.get());
       if (it != inject_hdrs.end()) {
-        Http::LowerCaseString lckey(element);
-        upstream_headers_->remove(lckey);
-        upstream_headers_->addReferenceKey(element, it->second);
-        continue;
+        upstream_headers_->remove(element);
+        if (it->second != "") {
+          ENVOY_LOG(info, "Injecting upstream {}:{}",element.get(), it->second);
+          upstream_headers_->addReferenceKey(element, it->second);
+        }
       }
     }
   }
@@ -80,40 +115,60 @@ void InjectFilter::onSuccess(std::unique_ptr<inject::InjectResponse>&& resp) {
   state_ = State::WaitingForUpstream;
   ENVOY_LOG(trace,"exiting onSuccess on icb: {}", PINT(this));
 
-  if (action.downstream_inject_headers_.size() > 0 || action.downstream_inject_any_) {
-    // only keep resp around if needed for downstream use
-    inject_response_ = std::move(resp);
-  }
-
   if (!wasSending) {
+    ENVOY_LOG(trace,"InjectFilter::handlePassThrough CONTINUING DECODING), cb on filter: {}", PINT(this));
     // continue decoding if it won't be done by control flow yet to
     // return from our decodeHeaders call send()
     decoder_callbacks_->continueDecoding();
   }
 }
 
-// called for gRPC call to InjectHeader
-void InjectFilter::onFailure(Grpc::Status::GrpcStatus status, const std::string& message) {
-  bool wasSending =   state_ == State::SendingInjectRequest;
-  ENVOY_LOG(warn,"onFailure({}), wasSending={}, msg='{}' called on icb: {}", status, wasSending, message,  PINT(this));
-  state_ = State::WaitingForUpstream;
-  if (!wasSending) {
-    // continue decoding if it won't be done by control flow yet to
-    // return from our decodeHeaders call send()
-    decoder_callbacks_->continueDecoding();
-  }
-}
+// abort - hairpin with response to original response from here (in
+// Envoy) instead of passing to upstream server for handling.
+void InjectFilter::handleAbortAction()  {
+  ENVOY_LOG(trace,"decoder filter handling abort (post inj response/its absence) {}", PINT(this));
+  //bool wasSending =   state_ == State::SendingInjectRequest;
+  state_ = State::Aborting;
 
-void InjectFilter::onDestroy() {
-  if (state_ == State::InjectRequestSent) {
-    state_ = State::Done;
-    if (req_) {
-      req_->cancel();
-      req_ = nullptr;
+  int statusCode = 0;
+  std::string body;
+  Http::HeaderMapImpl* response_headers{new Http::HeaderMapImpl{}};
+
+  if (inject_action_->use_rpc_response_ && inject_response_ != NULL) {
+    statusCode = inject_response_->response_code();
+    body = inject_response_->response_body();
+    for (int i = 0; i < inject_response_->response_header_size(); i++) {
+      auto h = inject_response_->response_header(i);
+      Http::LowerCaseString lckey(h.key());
+      response_headers->addCopy(lckey, h.value());
     }
   }
-  ENVOY_LOG(trace,"decoder filter onDestroy called on: {}", PINT(this));
+  if (statusCode == 0) {
+    statusCode = inject_action_->response_code_;
+    body = inject_action_->response_body_;
+    for( const auto& h_pair : inject_action_->response_headers_) {
+      Http::LowerCaseString lckey(h_pair.first);
+      response_headers->addCopy(lckey, h_pair.second);
+    }
+  }
+  bool hasBody =  body.size() > 0;
+  response_headers->addReferenceKey(Http::Headers::get().Status, std::to_string(statusCode));
+  if (hasBody) {
+    response_headers->addReferenceKey(Http::Headers::get().ContentLength, body.size());
+  }
+
+  ENVOY_LOG(trace,"Calling Encoders w hairpin response {}", PINT(this));
+  Http::HeaderMapPtr rh(response_headers);
+  decoder_callbacks_->encodeHeaders(std::move(rh), !hasBody);
+  if (hasBody) {
+    Buffer::OwnedImpl bodyBuf(body);
+    decoder_callbacks_->encodeData(bodyBuf, true);
+  }
+  //Http::Utility::sendLocalReply(*decoder_callbacks_, false, static_cast<Http::Code>(statusCode), body);
+
+  ENVOY_LOG(trace,"exiting decoder filter abort handling (post inj response/its absence) {}", PINT(this));
 }
+
 
 // decodeHeaders - see if any configured headers are present, and if so send them to
 // the configured header injection service
@@ -202,16 +257,6 @@ FilterHeadersStatus InjectFilter::decodeHeaders(HeaderMap& headers, bool end_str
       (*p)[it->first] = it->second;
     }
   }
-  // add names of headers we want/allow injected to inject request
-  /* skip these for now. Just hints about what client wants. use params
-  for (const Http::LowerCaseString& element : config_->upstream_inject_headers()) {
-    ir.add_upstreaminjectheadernames(element.get());
-  }
-
-  for (const Http::LowerCaseString& element : config_->downstream_inject_headers()) {
-    ir.add_downstreaminjectheadernames(element.get());
-  }
-  */
 
   client_ = config_->inject_client();
 
@@ -222,35 +267,49 @@ FilterHeadersStatus InjectFilter::decodeHeaders(HeaderMap& headers, bool end_str
   state_ = State::SendingInjectRequest;
   req_ = client_->send(config_->method_descriptor(), ir, *this, std::chrono::milliseconds(config_->timeout_ms()));
 
+  if (!req_) {
+    ENVOY_LOG(warn, "Could not send inject gRPC request. Null req returned by send(). Using error action. {}", PINT(this));
+    inject_action_ = &config_->action_matcher().errorAction();
+    handleAction();
+    if (state_ == State::WaitingForUpstream) {
+      return FilterHeadersStatus::Continue;
+    }
+    return FilterHeadersStatus::StopIteration;
+  }
+
+  if (state_ == State::Aborting) {
+    return FilterHeadersStatus::StopIteration;
+  }
+
   if (state_ == State::SendingInjectRequest) {
     state_ = State::InjectRequestSent;
   }
 
-  if (!req_) {
-    ENVOY_LOG(warn, "Could not send inject gRPC request. Null req returned by send(). {}", PINT(this));
-    state_ = State::WaitingForUpstream;
-    return FilterHeadersStatus::Continue;
-  }
-
   if (state_ == State::WaitingForUpstream) {
-    // send call about yielded for long enough to get answer
+    // send call about yielded for long enough to get ersponse to inject request
     return FilterHeadersStatus::Continue;
   }
 
+  // give control back to event loop so gRPC inject response or timeout
+  // can initiate next steps. Stash headers for mutation based on response.
   upstream_headers_ = &headers;
-  // give control back to event loop so gRPC inject response can be received
-  // FIXME: set timeout with dispatcher to either contine or fail the original call
   return FilterHeadersStatus::StopIteration;
 }
 
 FilterDataStatus InjectFilter::decodeData(Buffer::Instance&, bool end_stream) {
   ENVOY_LOG(trace,"InjectFilter::decodeData(end_stream={}) called on filter: {}", end_stream, PINT(this));
+  if (state_ == State::Aborting) {
+    return FilterDataStatus::StopIterationNoBuffer;
+  }
   return state_ == State::InjectRequestSent ? FilterDataStatus::StopIterationAndBuffer
                                             : FilterDataStatus::Continue;
 }
 
 FilterTrailersStatus InjectFilter::decodeTrailers(HeaderMap&) {
   ENVOY_LOG(trace,"InjectFilter::decodeTrailers() called on filter: {}", PINT(this));
+  if (state_ == State::Aborting) {
+    return FilterTrailersStatus::StopIteration;
+  }
   return state_ == State::InjectRequestSent ? FilterTrailersStatus::StopIteration
                                             : FilterTrailersStatus::Continue;
 }
@@ -260,45 +319,49 @@ void InjectFilter::setDecoderFilterCallbacks(StreamDecoderFilterCallbacks& callb
 }
 
 FilterHeadersStatus InjectFilter::encodeHeaders(HeaderMap& headers, bool) {
-  if (inject_response_ == nullptr) {
+  ENVOY_LOG(trace,"InjectFilter: encodeHeaders entered {}", PINT(this));
+  if (state_ == State::NotTriggered) {
     return FilterHeadersStatus::Continue;
   }
-  if (inject_action_->downstream_inject_any_) {
-    for (int i = 0; i < inject_response_->downstreamheaders_size(); ++i) {
-      const inject::Header& h = inject_response_->downstreamheaders(i);
-      Http::LowerCaseString lckey(h.key().c_str());
-      headers.addCopy(lckey, h.value());
-      ENVOY_LOG(info, "downstream injecting header {}: {}", h.key(), h.value());
-    }
-    for (int i = 0; i < inject_response_->downstreamremoveheadernames_size(); ++i) {
-      const std::string h = inject_response_->downstreamremoveheadernames(i);
-      Http::LowerCaseString lckey(h.c_str());
-      headers.remove(lckey);
-    }
-  } else {
-    std::map<std::string,std::string> inject_hdrs;
-    for (int i = 0; i < inject_response_->downstreamheaders_size(); ++i) {
-      const inject::Header& h = inject_response_->downstreamheaders(i);
-      inject_hdrs.insert(std::pair<std::string,std::string>(h.key(), h.value()));
-    }
-    std::map<std::string,std::string> remove_hdrs;
-    for (int i = 0; i < inject_response_->downstreamremoveheadernames_size(); ++i) {
-      const std::string h = inject_response_->downstreamremoveheadernames(i);
-      remove_hdrs.insert(std::pair<std::string,std::string>(h, h));
-    }
-    for (const Http::LowerCaseString& element : inject_action_->downstream_inject_headers_) {
-      ENVOY_LOG(info, "downstream injecting {}",element.get());
-      std::map<std::string,std::string>::iterator it = remove_hdrs.find(element.get());
-      if (it != remove_hdrs.end()) {
-        Http::LowerCaseString lckey(element);
-        headers.remove(lckey);
-        continue;
+
+  if (inject_response_ != nullptr) {
+    if (inject_action_->downstream_inject_any_) {
+      for (int i = 0; i < inject_response_->downstreamheaders_size(); ++i) {
+        const inject::Header& h = inject_response_->downstreamheaders(i);
+        Http::LowerCaseString lckey(h.key().c_str());
+        headers.addCopy(lckey, h.value());
+        ENVOY_LOG(info, "downstream injecting header {}: {}", h.key(), h.value());
       }
-      it = inject_hdrs.find(element.get());
-      if (it != inject_hdrs.end()) {
-        Http::LowerCaseString lckey(element);
+      for (int i = 0; i < inject_response_->downstreamremoveheadernames_size(); ++i) {
+        const std::string h = inject_response_->downstreamremoveheadernames(i);
+        Http::LowerCaseString lckey(h.c_str());
         headers.remove(lckey);
-        headers.addReferenceKey(element, it->second);
+      }
+    } else {
+      std::map<std::string,std::string> inject_hdrs;
+      for (int i = 0; i < inject_response_->downstreamheaders_size(); ++i) {
+        const inject::Header& h = inject_response_->downstreamheaders(i);
+        inject_hdrs.insert(std::pair<std::string,std::string>(h.key(), h.value()));
+      }
+      std::map<std::string,std::string> remove_hdrs;
+      for (int i = 0; i < inject_response_->downstreamremoveheadernames_size(); ++i) {
+        const std::string h = inject_response_->downstreamremoveheadernames(i);
+        remove_hdrs.insert(std::pair<std::string,std::string>(h, h));
+      }
+      for (const Http::LowerCaseString& element : inject_action_->downstream_inject_headers_) {
+        ENVOY_LOG(info, "downstream injecting {}",element.get());
+        std::map<std::string,std::string>::iterator it = remove_hdrs.find(element.get());
+        if (it != remove_hdrs.end()) {
+          headers.remove(element);
+          continue;
+        }
+        it = inject_hdrs.find(element.get());
+        if (it != inject_hdrs.end()) {
+          headers.remove(element);
+          if (it->second != "") {
+            headers.addReferenceKey(element, it->second);
+          }
+        }
       }
     }
   }
@@ -307,15 +370,16 @@ FilterHeadersStatus InjectFilter::encodeHeaders(HeaderMap& headers, bool) {
     ENVOY_LOG(info, "downstream removing header {}",element.get());
     headers.remove(element);
   }
-
   return FilterHeadersStatus::Continue;
 }
 
 FilterDataStatus InjectFilter::encodeData(Buffer::Instance&, bool) {
+  ENVOY_LOG(trace,"InjectFilter: encodeData entered {}", PINT(this));
   return FilterDataStatus::Continue;
 }
 
 FilterTrailersStatus InjectFilter::encodeTrailers(HeaderMap&) {
+  ENVOY_LOG(trace,"InjectFilter: encodeTrailers entered {}", PINT(this));
   return FilterTrailersStatus::Continue;
 }
 

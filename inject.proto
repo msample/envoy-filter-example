@@ -13,10 +13,14 @@ message InjectRequest {
 
 message InjectResponse {
   string result = 1;                              // errors or response catgories. use "ok"
-  repeated Header upstreamHeaders = 2;            // headers to inject on upstream req
-  repeated string upstreamRemoveHeaderNames = 3;  // header names to remove from upstream req
-  repeated Header downstreamHeaders = 4;          // headers to inject on downstream resp
-  repeated string downstreamRemoveHeaderNames = 5;// header names to remove frmo downstream resp
+  string action = 2;                              // "abort" or "passthrough" but may be ignored
+  repeated Header upstreamHeaders = 3;            // headers to inject on upstream req
+  repeated string upstreamRemoveHeaderNames = 4;  // header names to remove from upstream req
+  repeated Header downstreamHeaders = 5;          // headers to inject on downstream resp
+  repeated string downstreamRemoveHeaderNames = 6;// header names to remove from downstream resp
+  int32 response_code = 7;                          // abort http status. Defaults to 500 if not specified
+  repeated Header response_header = 8;            // headers in abort response
+  string response_body = 9;                       // abort response body, defaults to ""
 }
 
 message Header {

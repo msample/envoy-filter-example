@@ -66,6 +66,7 @@ const std::string INJECT_SCHEMA(R"EOF(
         "description": "configure reaction to inject request timeouts, errors and response codes. For example passing the request on anyway or aborting with an 503.",
         "items" : {
           "type" : "object",
+          "required": ["result"],
           "additionalProperties": false,
           "properties":{
             "result" : {
@@ -75,12 +76,11 @@ const std::string INJECT_SCHEMA(R"EOF(
             },
             "action" : {
               "type" : "string",
-              "description": "passthrough, abort, close, dynamic"
+              "description": "passthrough, abort, dynamic"
             },
             "upstream_inject_headers" : {
               "type" : "array",
               "uniqueItems" : true,
-              "minItems" : 1,
               "items" : {"type" : "string"},
               "description": "names of headers desired & allowed be injected into the request. Included in inject RPC to indicate desired headers. Also prevents arbitrary header name injection."
             },
@@ -97,7 +97,6 @@ const std::string INJECT_SCHEMA(R"EOF(
             "downstream_inject_headers" : {
               "type" : "array",
               "uniqueItems" : true,
-              "minItems" : 1,
               "items" : {"type" : "string"},
               "description": "names of headers desired & allowed be injected into the downstream response. Included in inject RPC to indicate desired headers. Also prevents arbitrary header name injection."
             },
@@ -205,9 +204,10 @@ Http::InjectFilterConfigSharedPtr InjectFilterConfig::createConfig(const Json::O
       });
   }
 
-  Http::InjectActionMatcher* action_matcher = new Http::InjectActionMatcher();
+  Http::InjectActionMatcher* action_matcher;
   if (json_config.hasObject("actions") ) {
     std::vector<Json::ObjectSharedPtr> actions = json_config.getObjectArray("actions");
+    action_matcher = new Http::InjectActionMatcher(actions.size());
     for (Json::ObjectSharedPtr action: actions) {
 
       std::vector<Http::LowerCaseString> upstream_inject_headers_lc;

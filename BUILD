@@ -81,6 +81,7 @@ envoy_cc_library(
         "@envoy//source/common/json:json_loader_lib",
         "@envoy//source/common/json:json_validator_lib",
         "@envoy//source/common/common:logger_lib",
+        "@envoy//source/common/buffer:buffer_lib",
     ],
 )
 

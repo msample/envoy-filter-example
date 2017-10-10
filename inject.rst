@@ -43,7 +43,8 @@ server while another talks to your session service.
           "use_rpc_response": false,
           "response_code": 500,
           "response_headers": [{ "key":"...", "value": "..."}],
-          "response_body": "..."
+          "response_body": "...",
+          "redo_routing": false
         }
       ]
     }
@@ -60,7 +61,7 @@ antitrigger_headers
 trigger_headers // Todo allow regexp & exact value matches for named cookies too
   *(sometimes required, array)* header constraints, any of
   which matching a request will cause injection to be attempted
-  unless an antitrigger is matches.  These header names also support
+  unless an antitrigger matches.  These header names also support
   "cookie.(cookie-name)" syntax so you can trigger on the presence of
   a specific cookie. For example, "cookie.session" will trigger
   injection if a cookie named "session" (case sensitive) is present in
@@ -82,11 +83,11 @@ always_triggered:  // TODO change this to triggered_percentage, 0-100
   optional.
 
 include_headers
-  *(optional, array)* if triggered, these header names and values will
-  be included as parameters to the gRPC injection request along with
-  any present trigger headers. They provide information to the
-  injection sevice in order to compute the injected header values.
-  The follwoing HTTP2 pseudo-headers are available here: :path,
+  *(optional, array)* if triggered, these header names and their
+  values will be included in the gRPC injection request along with any
+  present trigger headers. They provide information to the injection
+  sevice in order to compute the injected header values.  The
+  follwoing HTTP2 pseudo-headers are available here: :path,
   :authority, :method.  The :path pseudo-header includes query
   parameters. This does not support the named cookie style
   "cookie.foo"; instead just send the entire "cookie" header.
@@ -99,22 +100,24 @@ include_all_headers
 
 params
   *(optional, object)* opaque named string values to send with gRPC
-  inject request to control implementatation-specific behaviour of
-  injector service ().
+  inject request to control implementatation-specific behaviour of the
+  injector service. For example, this could identify the context of
+  the request (environment), a dark-launch/feature-flag or dry-run
+  mode.
 
 cluster_name
-  *(required, string)* cluster to use for the gRPC calls to the
-  injection service. This cluster must exist in the config file at
-  startup. Dynamic disovery is not supported yet. Ensure that this
-  cluster is configured to support gRPC, ie, the http2 feature and
-  if using TLS, ensure ssl_context object is there with ALPN h2 set.
+  *(required, string)* cluster to which gRPC inject requests are
+  sent. This cluster must exist in the config file at startup. Dynamic
+  disovery is not supported yet. Ensure that this cluster is
+  configured to support gRPC, ie, the http2 feature and if using TLS,
+  ensure ssl_context object is there with ALPN h2 set.
 
 timeout_ms
   *(optional, number)* maximum milliseconds to wait for the gRPC
-  injection response before simply passing the request upstream
-  without injecting any headers. Defaults to 120. Minimum value is 0.
-  Using a zero timeout may be handy for cases where you mirroring
-  some traffic for monitoring purposes.
+  injection response before using the local.error xor local.any action
+  (in that precedence). Defaults to 120. Minimum value is 0.  Using a
+  zero timeout may be handy for cases where you mirroring some traffic
+  for monitoring purposes.
 
 result
   *(required, array)* the result string in the inject response is used
@@ -127,38 +130,36 @@ result
   "local.grpc-result" and finally the "local.any" match.  A default
   "local.any" that aborts with 500 errors is added but may be
   overidden. Inject response result values must not start with
-  "local." otherwise they will be ignored.
+  "local." otherwise they will be treated as an error.
 
 action
   *(required, string)* "passthrough", "abort" or "dynamic".
-  "passthrough" means let the request carry on with injected/removed
-  headers and similarly alter the response by adding/removing the
-  desired header.  "abort" means hairpin the request with a response
-  immediately using the response code, headers and body in the inject
-  response iff use_rpc_response is true, otherwise using the
-  configured response_code, response_headers and
-  response_body. "dynamic" means let the injection service
-  decide if the request should be aborted or passed through.
+  "passthrough" means let the request carry on after requested
+  modifcations and similarly alter the response with the requested
+  modifications (headers).  "abort" means hairpin the request with a
+  response immediately using the response code, headers and body in
+  the inject response iff use_rpc_response is true, otherwise using
+  the configured response_code, response_headers and
+  response_body. "dynamic" means let the injection service decide if
+  the request should be aborted or passed through.
 
 upstream_inject_headers
   *(optional, array)* header name strings desired to be injected into
-  the upstream request.  These names will be provided in the gRPC
-  inject request and these headers in the response may be injected or
-  removed.  Only headers named in this list are allowed to be injected
-  or removed unless *upstream_inject_any* is true.  Any others
-  returned in the gRPC response will be ignored.  The gRPC responder
-  may choose not to provide values for every one of these. Strongly
-  consider also adding these to the *internal_only_headers* of the
-  *route_config* so they are stripped first if they arrive from
-  outside (prevent forgeries).  Also consider signatures on these
-  header values to prevent forgeries from inside your network. For
-  example, use the RSA or ECC signatures on a JWT.  If the injected
-  header already exists in the request, the injected one replaces the
-  original one.
+  the upstream request. Only headers named in this list are allowed to
+  be injected or removed unless *upstream_inject_any* is true.  Any
+  others returned in the gRPC response will be ignored.  The gRPC
+  responder may choose not to provide values for every one of
+  these. Strongly consider also adding these to the
+  *internal_only_headers* of the *route_config* so they are stripped
+  first if they arrive from outside (prevent forgeries).  Also
+  consider signatures on these header values to prevent forgeries from
+  inside your network. For example, use the RSA or ECC signatures on a
+  JWT.  If the injected header already exists in the request, the
+  injected one replaces the original one.
 
 upstream_inject_any
   *(optional, boolean)* inject every header value returned in the gRPC
-  response into the upsream requeest if true. Otherwise, only those
+  response into the upsream request if true. Otherwise, only those
   named in *upstream_inject_headers* are allowed to be injected.
 
 upstream_remove_headers
@@ -174,8 +175,7 @@ upstream_remove_headers
 
 downstream_inject_headers
   *(optional, array)* header name strings desired to be injected into
-  the downstream response.  These names will be provided to the gRPC
-  inject request and only these headers in the response may be
+  the downstream response.  Only these headers in the response may be
   injected or removed; others returned in the gRPC response will be
   ignored (see *downstream_inject_any* to loosen this). If the injected
   header already exists in the downstream response, the injected one
@@ -196,8 +196,11 @@ downstream_remove_headers
   or any header is *downstream_inject_any* is true.
 
 use_rpc_response
-  *(optiontal, boolean)* whether to use the response information in the
-  result. defaults to false.
+  *(optional, boolean)* in the case of "abort" actions, whether to use
+  the response information in the grpc response. Defaults to false.
+  If this is true and the grpc response does not contain a
+  response_code, the envoy-local response defined by this action's
+  *response_code*, *resonse_headers* and *response_body* will be used.
 
 response_code
   *(optional, integer)* defaults to 500.
@@ -206,11 +209,11 @@ response_headers
   *(optional, array)* defaults to empty.
 
 response_body
-  *(optional, string)* defaults to empty string
+  *(optional, string)* defaults to empty string.
 
 redo_routing // TODO Add this
    *(optional, boolean)* if you wanted injected headers to be able to
-   influence routing set this to true so the route is recacluated
+   influence routing set this to true so the route is re-calcuated
    after the headers are injected. Defaults to false. May have
    performance impact with complex routing rules.
 
